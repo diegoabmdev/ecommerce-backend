@@ -36,6 +36,13 @@ export class UsersService {
     }
   }
 
+  async findOneByEmail(email: string) {
+    return await this.userRepository.findOne({
+      where: { email },
+      select: ['id', 'email', 'password', 'role'],
+    });
+  }
+
   private handleDbErrors(error: any): never {
     const dbError = error as { code?: string };
 
