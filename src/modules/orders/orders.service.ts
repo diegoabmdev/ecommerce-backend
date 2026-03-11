@@ -5,6 +5,7 @@ import { CartService } from '../cart/cart.service';
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
+import { PaymentsService } from '../payments/payments.service';
 
 @Injectable()
 export class OrdersService {
@@ -13,6 +14,7 @@ export class OrdersService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly cartService: CartService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   async create(user: User) {
@@ -60,12 +62,17 @@ export class OrdersService {
       }
 
       await this.cartService.clearCart(user.id);
+      const paymentPreference = await this.paymentsService.createPreference(
+        savedOrder.id,
+        cart.items,
+      );
+
       await queryRunner.commitTransaction();
 
       return {
-        message: 'Orden creada exitosamente',
+        message: 'Orden creada. Redirigiendo a pago...',
         orderId: savedOrder.id,
-        total: savedOrder.total,
+        checkoutUrl: paymentPreference.init_point,
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();
