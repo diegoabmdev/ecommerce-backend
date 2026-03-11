@@ -28,7 +28,6 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     try {
-      // Crear la cabecera
       const order = queryRunner.manager.create(Order, {
         total: cart.summary.total,
         tax: cart.summary.tax,
@@ -38,7 +37,6 @@ export class OrdersService {
 
       const savedOrder = await queryRunner.manager.save(order);
 
-      // Procesar items
       for (const item of cart.items) {
         const product = await queryRunner.manager.findOneBy(Product, {
           id: item.productId,

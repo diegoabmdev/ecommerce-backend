@@ -24,7 +24,6 @@ export class Address {
   @Column({ default: false })
   isDefault: boolean;
 
-  // Relación: Muchas direcciones pertenecen a un solo usuario
   @ManyToOne(() => User, (user) => user.addresses, { onDelete: 'CASCADE' })
   user: User;
 }

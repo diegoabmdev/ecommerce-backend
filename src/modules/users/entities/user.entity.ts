@@ -25,7 +25,6 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
-  // Relación: Un usuario tiene muchas direcciones
   @OneToMany(() => Address, (address) => address.user, { cascade: true })
   addresses: Address[];
 
