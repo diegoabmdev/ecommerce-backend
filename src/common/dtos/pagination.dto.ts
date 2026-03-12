@@ -1,4 +1,11 @@
-import { IsOptional, IsPositive, Min, IsInt, IsString } from 'class-validator';
+import {
+  IsOptional,
+  IsPositive,
+  Min,
+  IsInt,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PaginationDto {
@@ -17,4 +24,8 @@ export class PaginationDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
 }

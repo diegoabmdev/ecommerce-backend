@@ -8,6 +8,7 @@ import { CartModule } from './modules/cart/cart.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { FilesModule } from './modules/files/files.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 
 @Module({
   imports: [
@@ -43,6 +44,8 @@ import { FilesModule } from './modules/files/files.module';
     PaymentsModule,
 
     FilesModule,
+
+    CategoriesModule,
   ],
 })
 export class AppModule {}

@@ -9,6 +9,7 @@ import {
   IsPositive,
   MinLength,
   IsObject,
+  IsUUID,
 } from 'class-validator';
 
 export class CreateProductDto {
@@ -59,4 +60,8 @@ export class CreateProductDto {
   @IsArray()
   @IsOptional()
   tags?: string[];
+
+  @IsUUID()
+  @IsOptional()
+  categoryId?: string;
 }

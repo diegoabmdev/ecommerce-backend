@@ -12,6 +12,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { FilesService } from '../files/files.service';
+import { CategoriesService } from '../categories/categories.service';
 
 interface DbError {
   code?: string;
@@ -26,11 +27,20 @@ export class ProductsService {
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
     private readonly filesService: FilesService,
+    private readonly categoriesService: CategoriesService,
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
+    const { categoryId, ...productDetails } = createProductDto;
+
     try {
-      const product = this.productRepository.create(createProductDto);
+      const product = this.productRepository.create({ ...productDetails });
+      if (categoryId) {
+        const category =
+          await this.categoriesService.findOneInternal(categoryId);
+        if (!category) throw new NotFoundException('Categoría no encontrada');
+        product.category = category;
+      }
       await this.productRepository.save(product);
       return product;
     } catch (error) {
@@ -90,7 +100,7 @@ export class ProductsService {
   }
 
   async findAll(paginationDto: PaginationDto) {
-    const { limit = 10, offset = 0, search } = paginationDto;
+    const { limit = 10, offset = 0, search, categoryId } = paginationDto;
 
     const whereOptions: FindOptionsWhere<Product> = { isActive: true };
 
@@ -98,10 +108,15 @@ export class ProductsService {
       whereOptions.title = ILike(`%${search}%`);
     }
 
+    if (categoryId) {
+      whereOptions.category = { id: categoryId };
+    }
+
     const [products, total] = await this.productRepository.findAndCount({
       take: limit,
       skip: offset,
       where: whereOptions,
+      relations: ['category'],
       order: {
         createdAt: 'DESC',
       },
@@ -115,12 +130,17 @@ export class ProductsService {
         offset,
         totalPages: Math.ceil(total / limit),
         search: search || null,
+        categoryId: categoryId || null,
       },
     };
   }
 
   async findOne(id: string): Promise<Product> {
-    const product = await this.productRepository.findOneBy({ id });
+    const product = await this.productRepository.findOne({
+      where: { id },
+      relations: ['category'],
+    });
+
     if (!product)
       throw new NotFoundException(`Producto con id ${id} no encontrado`);
     return product;
@@ -130,17 +150,26 @@ export class ProductsService {
     id: string,
     updateProductDto: UpdateProductDto,
   ): Promise<Product> {
+    const { categoryId, ...toUpdate } = updateProductDto;
+
     const product = await this.productRepository.preload({
       id: id,
-      ...updateProductDto,
+      ...toUpdate,
     });
 
     if (!product)
       throw new NotFoundException(`Producto con id ${id} no encontrado`);
 
+    if (categoryId) {
+      const category = await this.categoriesService.findOneInternal(categoryId);
+      if (!category) throw new NotFoundException('Categoría no encontrada');
+      product.category = category;
+    }
+
     try {
       await this.productRepository.save(product);
-      return product;
+
+      return this.findOne(id);
     } catch (error) {
       this.handleDbErrors(error as DbError);
     }

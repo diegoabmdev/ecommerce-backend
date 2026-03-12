@@ -1,3 +1,4 @@
+import { Category } from 'src/modules/categories/entities/category.entity';
 import {
   Entity,
   Column,
@@ -6,6 +7,8 @@ import {
   UpdateDateColumn,
   BeforeInsert,
   BeforeUpdate,
+  JoinColumn,
+  ManyToOne,
 } from 'typeorm';
 
 @Entity('products')
@@ -63,4 +66,10 @@ export class Product {
       .replaceAll(' ', '_')
       .replaceAll("'", '');
   }
+
+  @ManyToOne(() => Category, (category) => category.products, {
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'category_id' })
+  category: Category;
 }
