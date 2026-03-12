@@ -17,6 +17,27 @@ interface PaymentItem {
   price: number;
 }
 
+interface N8nOrderPayload {
+  event: string;
+  date: string;
+  order: {
+    id: string;
+    total: number;
+    tax: number;
+    status: OrderStatus;
+    user: {
+      id: string;
+      email: string;
+    };
+    items: {
+      title: string;
+      quantity: number;
+      price: number;
+      subtotal: number;
+    }[];
+  };
+}
+
 @Injectable()
 export class PaymentsService {
   private readonly client: MercadoPagoConfig;
@@ -62,7 +83,6 @@ export class PaymentsService {
             failure: 'https://www.google.com',
             pending: 'https://www.google.com',
           },
-          //auto_return: 'approved',
           external_reference: String(orderId),
           notification_url: `${this.configService.get<string>('BASE_URL_WEBHOOK')}/api/v1/payments/webhook`,
         },
@@ -90,6 +110,19 @@ export class PaymentsService {
         });
 
         this.logger.log(`Orden ${orderId} pagada exitosamente.`);
+
+        const fullOrder = await this.orderRepository.findOne({
+          where: { id: orderId },
+          relations: ['user', 'items', 'items.product'],
+        });
+
+        if (fullOrder) {
+          this.triggerN8nWebhook(fullOrder).catch((err: unknown) => {
+            const msg =
+              err instanceof Error ? err.message : 'Error desconocido';
+            this.logger.error(`Error disparando n8n: ${msg}`);
+          });
+        }
       } else if (!orderId) {
         this.logger.warn(
           `El pago ${paymentId} no tiene external_reference (orderId)`,
@@ -102,6 +135,53 @@ export class PaymentsService {
         error instanceof Error ? error.message : 'Error desconocido';
       this.logger.error(`Error al verificar pago: ${errorMessage}`);
       return { success: false };
+    }
+  }
+
+  private async triggerN8nWebhook(order: Order) {
+    const n8nUrl = this.configService.get<string>('N8N_WEBHOOK_URL');
+
+    if (!n8nUrl) {
+      this.logger.warn(
+        'N8N_WEBHOOK_URL no configurada, saltando automatización.',
+      );
+      return;
+    }
+
+    try {
+      const payload: N8nOrderPayload = {
+        event: 'order.paid',
+        date: new Date().toISOString(),
+        order: {
+          id: order.id,
+          total: order.total,
+          tax: order.tax,
+          status: order.status,
+          user: {
+            id: order.user.id,
+            email: order.user.email,
+          },
+          items: order.items.map((item) => ({
+            title: item.product.title,
+            quantity: item.quantity,
+            price: item.priceAtPurchase,
+            subtotal: item.quantity * item.priceAtPurchase,
+          })),
+        },
+      };
+
+      const response = await fetch(n8nUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) throw new Error(`Status: ${response.status}`);
+
+      this.logger.log('Notificación enviada a n8n correctamente.');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error desconocido';
+      this.logger.error(`Falló el envío a n8n: ${msg}`);
     }
   }
 }
