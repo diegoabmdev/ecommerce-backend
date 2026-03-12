@@ -49,6 +49,12 @@ export class Product {
   @Column('text', { array: true, default: [] })
   tags: string[];
 
+  @Column('float', { default: 0 })
+  ratingAverage: number;
+
+  @Column('int', { default: 0 })
+  reviewCount: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

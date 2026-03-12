@@ -92,4 +92,25 @@ export class OrdersService {
       relations: ['items', 'items.product'],
     });
   }
+
+  async checkUserBoughtProduct(
+    userId: string,
+    productId: string,
+  ): Promise<boolean> {
+    this.logger.log(
+      `Verificando compra real: Usuario ${userId}, Producto ${productId}`,
+    );
+
+    const orderItem = await this.dataSource.manager.findOne(OrderItem, {
+      where: {
+        product: { id: productId },
+        order: {
+          user: { id: userId },
+          status: OrderStatus.PAID,
+        },
+      },
+    });
+
+    return !!orderItem;
+  }
 }
