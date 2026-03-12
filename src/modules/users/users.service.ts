@@ -59,4 +59,17 @@ export class UsersService {
       relations: ['addresses'],
     });
   }
+
+  async findOne(id: string) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: ['addresses'],
+    });
+
+    if (!user) {
+      throw new BadRequestException(`Usuario con id ${id} no encontrado`);
+    }
+
+    return user;
+  }
 }
