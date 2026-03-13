@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -16,11 +15,6 @@ import { ProductsService } from '../products/products.service';
 import { OrdersService } from '../orders/orders.service';
 import { UpdateProductDto } from '../products/dto/update-product.dto';
 
-interface DbError {
-  code?: string;
-  detail?: string;
-}
-
 @Injectable()
 export class ReviewsService {
   private readonly logger = new Logger('ReviewsService');
@@ -28,7 +22,6 @@ export class ReviewsService {
   constructor(
     @InjectRepository(Review)
     private readonly reviewRepository: Repository<Review>,
-
     private readonly ordersService: OrdersService,
     private readonly productsService: ProductsService,
   ) {}
@@ -54,24 +47,22 @@ export class ReviewsService {
     if (existingReview)
       throw new BadRequestException('Ya has calificado este producto');
 
-    try {
-      const review = this.reviewRepository.create({
-        rating,
-        comment,
-        user,
-        product: { id: productId },
-      });
+    const review = this.reviewRepository.create({
+      rating,
+      comment,
+      user,
+      product: { id: productId },
+    });
 
-      await this.reviewRepository.save(review);
+    await this.reviewRepository.save(review);
 
-      // ACTUALIZACIÓN DE RATING
-      await this.updateProductRating(productId);
+    await this.updateProductRating(productId);
 
-      delete (review.user as Partial<User>).password;
-      return review;
-    } catch (error) {
-      this.handleDbErrors(error as DbError);
-    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...userWithoutPassword } = review.user;
+    review.user = userWithoutPassword as User;
+
+    return review;
   }
 
   async findByProduct(productId: string) {
@@ -93,53 +84,35 @@ export class ReviewsService {
     if (!review) throw new NotFoundException(`Reseña no encontrada`);
 
     if (review.user.id !== user.id && user.role !== 'admin') {
-      throw new ForbiddenException('No tienes permiso');
+      throw new ForbiddenException(
+        'No tienes permiso para eliminar esta reseña',
+      );
     }
 
     const productId = review.product.id;
     await this.reviewRepository.remove(review);
 
-    // ACTUALIZACIÓN DE RATING
     await this.updateProductRating(productId);
 
-    return { message: 'Reseña eliminada' };
+    return { message: 'Reseña eliminada correctamente' };
   }
 
   private async updateProductRating(productId: string): Promise<void> {
-    try {
-      const reviews = await this.reviewRepository.find({
-        where: { product: { id: productId } },
-      });
+    const reviews = await this.reviewRepository.find({
+      where: { product: { id: productId } },
+    });
 
-      const reviewCount = reviews.length;
+    const reviewCount = reviews.length;
+    const ratingAverage =
+      reviewCount > 0
+        ? reviews.reduce((acc, rev) => acc + rev.rating, 0) / reviewCount
+        : 0;
 
-      const ratingAverage =
-        reviewCount > 0
-          ? reviews.reduce((acc, rev) => acc + rev.rating, 0) / reviewCount
-          : 0;
+    const updateData: UpdateProductDto = {
+      ratingAverage: Number(ratingAverage.toFixed(1)),
+      reviewCount: reviewCount,
+    };
 
-      const updateData: UpdateProductDto = {
-        ratingAverage: Number(ratingAverage.toFixed(1)),
-        reviewCount: reviewCount,
-      };
-
-      await this.productsService.update(productId, updateData);
-    } catch (error) {
-      this.logger.error(
-        `Error actualizando el rating del producto ${productId}:`,
-        error,
-      );
-    }
-  }
-
-  private handleDbErrors(error: DbError): never {
-    if (error.code === '23505') {
-      throw new BadRequestException('Error de duplicidad en la base de datos');
-    }
-
-    this.logger.error(error);
-    throw new InternalServerErrorException(
-      'Error inesperado en ReviewsService, revise logs del servidor',
-    );
+    await this.productsService.update(productId, updateData);
   }
 }

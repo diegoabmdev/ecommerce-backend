@@ -1,7 +1,6 @@
 import {
   Injectable,
   BadRequestException,
-  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,11 +12,6 @@ import { Product } from './entities/product.entity';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { FilesService } from '../files/files.service';
 import { CategoriesService } from '../categories/categories.service';
-
-interface DbError {
-  code?: string;
-  detail?: string;
-}
 
 @Injectable()
 export class ProductsService {
@@ -33,19 +27,16 @@ export class ProductsService {
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const { categoryId, ...productDetails } = createProductDto;
 
-    try {
-      const product = this.productRepository.create({ ...productDetails });
-      if (categoryId) {
-        const category =
-          await this.categoriesService.findOneInternal(categoryId);
-        if (!category) throw new NotFoundException('Categoría no encontrada');
-        product.category = category;
-      }
-      await this.productRepository.save(product);
-      return product;
-    } catch (error) {
-      this.handleDbErrors(error as DbError);
+    const product = this.productRepository.create({ ...productDetails });
+
+    if (categoryId) {
+      const category = await this.categoriesService.findOneInternal(categoryId);
+      if (!category) throw new NotFoundException('Categoría no encontrada');
+      product.category = category;
     }
+
+    await this.productRepository.save(product);
+    return product;
   }
 
   async uploadMultipleImages(productId: string, files: Express.Multer.File[]) {
@@ -60,13 +51,11 @@ export class ProductsService {
     );
     const results = await Promise.all(uploadPromises);
 
-    if (!product.images) {
-      product.images = [];
-    }
+    if (!product.images) product.images = [];
 
     const newUrls = results.map((res) => res.secure_url);
-
     product.images = [...product.images, ...newUrls];
+
     await this.productRepository.save(product);
 
     return {
@@ -101,25 +90,17 @@ export class ProductsService {
 
   async findAll(paginationDto: PaginationDto) {
     const { limit = 10, offset = 0, search, categoryId } = paginationDto;
-
     const whereOptions: FindOptionsWhere<Product> = { isActive: true };
 
-    if (search) {
-      whereOptions.title = ILike(`%${search}%`);
-    }
-
-    if (categoryId) {
-      whereOptions.category = { id: categoryId };
-    }
+    if (search) whereOptions.title = ILike(`%${search}%`);
+    if (categoryId) whereOptions.category = { id: categoryId };
 
     const [products, total] = await this.productRepository.findAndCount({
       take: limit,
       skip: offset,
       where: whereOptions,
       relations: ['category'],
-      order: {
-        createdAt: 'DESC',
-      },
+      order: { createdAt: 'DESC' },
     });
 
     return {
@@ -129,8 +110,6 @@ export class ProductsService {
         limit,
         offset,
         totalPages: Math.ceil(total / limit),
-        search: search || null,
-        categoryId: categoryId || null,
       },
     };
   }
@@ -166,18 +145,14 @@ export class ProductsService {
       product.category = category;
     }
 
-    try {
-      await this.productRepository.save(product);
-
-      return this.findOne(id);
-    } catch (error) {
-      this.handleDbErrors(error as DbError);
-    }
+    await this.productRepository.save(product);
+    return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {
     const product = await this.findOne(id);
-    if (product.images && product.images.length > 0) {
+
+    if (product.images?.length > 0) {
       const deletePromises = product.images.map((img) =>
         this.filesService.deleteImage(img),
       );
@@ -185,13 +160,7 @@ export class ProductsService {
         this.logger.error('Error limpiando Cloudinary al borrar producto', err),
       );
     }
+
     await this.productRepository.remove(product);
-  }
-
-  private handleDbErrors(error: DbError): never {
-    if (error.code === '23505') throw new BadRequestException(error.detail);
-
-    this.logger.error(error);
-    throw new InternalServerErrorException('Error inesperado, revise los logs');
   }
 }

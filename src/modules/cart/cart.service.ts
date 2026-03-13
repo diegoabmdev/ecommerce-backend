@@ -1,3 +1,4 @@
+// cart.service.ts
 import {
   Injectable,
   BadRequestException,
@@ -24,6 +25,7 @@ export class CartService {
 
     const product = await this.productRepository.findOneBy({ id: productId });
     if (!product) throw new NotFoundException('Producto no encontrado');
+
     if (product.stock < quantity)
       throw new BadRequestException('Stock insuficiente');
 
@@ -39,11 +41,7 @@ export class CartService {
       }
       cartItem.quantity += quantity;
     } else {
-      cartItem = this.cartRepository.create({
-        user,
-        product,
-        quantity,
-      });
+      cartItem = this.cartRepository.create({ user, product, quantity });
     }
 
     return await this.cartRepository.save(cartItem);
@@ -55,10 +53,10 @@ export class CartService {
       relations: ['product'],
     });
 
-    const subtotal = items.reduce((acc, item) => {
-      return acc + item.product.price * item.quantity;
-    }, 0);
-
+    const subtotal = items.reduce(
+      (acc, item) => acc + item.product.price * item.quantity,
+      0,
+    );
     const tax = subtotal * 0.19;
     const total = subtotal + tax;
 
@@ -80,16 +78,13 @@ export class CartService {
   }
 
   async removeProductFromCart(productId: string, user: User): Promise<void> {
-    const cartItem = await this.cartRepository.findOne({
-      where: {
-        product: { id: productId },
-        user: { id: user.id },
-      },
+    const cartItem = await this.cartRepository.findOneBy({
+      product: { id: productId },
+      user: { id: user.id },
     });
 
-    if (!cartItem) {
+    if (!cartItem)
       throw new NotFoundException(`El producto no está en tu carrito`);
-    }
 
     await this.cartRepository.remove(cartItem);
   }

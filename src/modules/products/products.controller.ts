@@ -12,6 +12,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   UploadedFile,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ProductsService } from './products.service';
@@ -41,6 +42,11 @@ export class ProductsController {
   @Get()
   findAll(@Query() paginationDto: PaginationDto) {
     return this.productsService.findAll(paginationDto);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.productsService.findOne(id);
   }
 
   @Post('upload-temp')
@@ -74,7 +80,10 @@ export class ProductsController {
   @Patch(':id')
   @RoleProtected(ValidRoles.admin, ValidRoles.superUser)
   @UseGuards(AuthGuard(), UserRoleGuard)
-  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateProductDto: UpdateProductDto,
+  ) {
     return this.productsService.update(id, updateProductDto);
   }
 
@@ -89,7 +98,7 @@ export class ProductsController {
   @RoleProtected(ValidRoles.admin)
   @UseGuards(AuthGuard(), UserRoleGuard)
   async deleteImage(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body('imageUrl') imageUrl: string,
   ) {
     if (!imageUrl) {

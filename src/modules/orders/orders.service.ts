@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { DataSource, QueryRunner } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { CartService } from '../cart/cart.service';
 import { Order, OrderStatus } from './entities/order.entity';
@@ -23,7 +23,7 @@ export class OrdersService {
     if (cart.items.length === 0)
       throw new BadRequestException('El carrito está vacío');
 
-    const queryRunner: QueryRunner = this.dataSource.createQueryRunner();
+    const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
@@ -43,7 +43,9 @@ export class OrdersService {
         });
 
         if (!product || product.stock < item.quantity) {
-          throw new Error(`Stock insuficiente para el producto: ${item.title}`);
+          throw new BadRequestException(
+            `Stock insuficiente para el producto: ${item.title}`,
+          );
         }
 
         product.stock -= item.quantity;
@@ -60,6 +62,7 @@ export class OrdersService {
       }
 
       await this.cartService.clearCart(user.id);
+
       const paymentPreference = await this.paymentsService.createPreference(
         savedOrder.id,
         cart.items,
@@ -68,18 +71,13 @@ export class OrdersService {
       await queryRunner.commitTransaction();
 
       return {
-        message: 'Orden creada. Redirigiendo a pago...',
+        message: 'Orden creada exitosamente',
         orderId: savedOrder.id,
         checkoutUrl: paymentPreference.init_point,
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();
-
-      const errorMessage =
-        error instanceof Error ? error.message : 'Error desconocido';
-      this.logger.error(errorMessage);
-
-      throw new BadRequestException(errorMessage);
+      throw error;
     } finally {
       await queryRunner.release();
     }
@@ -97,10 +95,6 @@ export class OrdersService {
     userId: string,
     productId: string,
   ): Promise<boolean> {
-    this.logger.log(
-      `Verificando compra real: Usuario ${userId}, Producto ${productId}`,
-    );
-
     const orderItem = await this.dataSource.manager.findOne(OrderItem, {
       where: {
         product: { id: productId },
@@ -110,7 +104,6 @@ export class OrdersService {
         },
       },
     });
-
     return !!orderItem;
   }
 }

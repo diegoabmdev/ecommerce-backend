@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -17,23 +13,18 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    try {
-      const { password, ...userData } = createUserDto;
-      const hashedPassword: string = bcrypt.hashSync(password, 10);
+    const { password, ...userData } = createUserDto;
 
-      const user = this.userRepository.create({
-        ...userData,
-        password: hashedPassword,
-      });
+    const user = this.userRepository.create({
+      ...userData,
+      password: bcrypt.hashSync(password, 10),
+    });
 
-      await this.userRepository.save(user);
+    await this.userRepository.save(user);
 
-      const userResponse = { ...user };
-      delete (userResponse as Partial<User>).password;
-      return userResponse;
-    } catch (error) {
-      this.handleDbErrors(error);
-    }
+    const userResponse = { ...user };
+    delete (userResponse as Partial<User>).password;
+    return userResponse;
   }
 
   async findOneByEmail(email: string) {
@@ -41,17 +32,6 @@ export class UsersService {
       where: { email },
       select: ['id', 'email', 'password', 'role'],
     });
-  }
-
-  private handleDbErrors(error: any): never {
-    const dbError = error as { code?: string };
-
-    if (dbError.code === '23505')
-      throw new BadRequestException('El correo ya existe en la base de datos');
-
-    throw new InternalServerErrorException(
-      'Error inesperado, revise los logs del servidor',
-    );
   }
 
   async findAll() {
@@ -67,7 +47,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new BadRequestException(`Usuario con id ${id} no encontrado`);
+      throw new NotFoundException(`Usuario con id ${id} no encontrado`);
     }
 
     return user;
