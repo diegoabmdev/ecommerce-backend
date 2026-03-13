@@ -6,6 +6,7 @@ import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { PaymentsService } from '../payments/payments.service';
+import { UpdateOrderStatusDto } from './dto/update-order.dto';
 
 @Injectable()
 export class OrdersService {
@@ -105,5 +106,24 @@ export class OrdersService {
       },
     });
     return !!orderItem;
+  }
+
+  async updateStatus(id: string, updateOrderStatusDto: UpdateOrderStatusDto) {
+    const { status } = updateOrderStatusDto;
+
+    const order = await this.dataSource.manager.findOneBy(Order, { id });
+
+    if (!order) {
+      throw new BadRequestException(`Orden con ID ${id} no encontrada`);
+    }
+
+    order.status = status;
+    await this.dataSource.manager.save(order);
+
+    return {
+      message: 'Estado de la orden actualizado',
+      orderId: id,
+      newStatus: status,
+    };
   }
 }

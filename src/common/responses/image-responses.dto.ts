@@ -14,6 +14,6 @@ export class MultipleImageDataDto {
 
 // Para: delete-image y otros mensajes simples
 export class MessageDataDto {
-  @ApiProperty({ example: 'Recurso eliminado correctamente' })
+  @ApiProperty({ example: 'Accion realizada correctamente' })
   message: string;
 }
