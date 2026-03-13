@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filter/http-exception.filter';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -39,12 +40,13 @@ async function bootstrap() {
   app.use(
     '/reference',
     apiReference({
-      theme: 'purple',
+      theme: 'deepSpace',
       layout: 'modern',
       content: document,
     }),
   );
 
+  app.useGlobalInterceptors(new ResponseInterceptor());
   const port = process.env.PORT || 3000;
   await app.listen(port);
 

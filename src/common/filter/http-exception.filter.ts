@@ -46,14 +46,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     this.logger.error(
-      `Error en ${request.url}: ${Array.isArray(message) ? message.join(', ') : message}`,
+      `Error en ${request.method} ${request.url}: ${Array.isArray(message) ? message.join(', ') : message}`,
     );
 
     response.status(status).json({
+      success: false,
       statusCode: status,
+      message: message,
       timestamp: new Date().toISOString(),
       path: request.url,
-      message: message,
     });
   }
 }

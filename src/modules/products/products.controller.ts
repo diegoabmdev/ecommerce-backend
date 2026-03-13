@@ -6,7 +6,6 @@ import {
   Patch,
   Param,
   Delete,
-  UseGuards,
   Query,
   BadRequestException,
   UseInterceptors,
@@ -14,17 +13,42 @@ import {
   UploadedFile,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiConsumes,
+  ApiBody,
+  ApiParam,
+} from '@nestjs/swagger';
+
 import { ProductsService } from './products.service';
+import { FilesService } from '../files/files.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { UserRoleGuard } from '../auth/guards/user-role.guard';
-import { RoleProtected } from '../auth/decorators/role-protected.decorator';
 import { ValidRoles } from '../auth/interfaces/valid-roles';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { FilesService } from '../files/files.service';
+import { Product } from './entities/product.entity';
 
+import { Auth } from '../../common/decorators/auth.decorator';
+import { ApiBaseResponse } from '../../common/decorators/api-res-generic.decorator';
+import {
+  ApiIdResponse,
+  ApiFileResponse,
+  ApiValidationResponse,
+  ApiServerErrors,
+} from '../../common/decorators/swagger-errors.decorator';
+
+import { ProductListResponseDto } from 'src/common/responses/product-list-response.dto';
+import {
+  TempImageDataDto,
+  MultipleImageDataDto,
+  MessageDataDto,
+} from 'src/common/responses/image-responses.dto';
+
+@ApiTags('Products')
+@ApiServerErrors()
 @Controller('products')
 export class ProductsController {
   constructor(
@@ -33,53 +57,81 @@ export class ProductsController {
   ) {}
 
   @Post()
-  @RoleProtected(ValidRoles.admin)
-  @UseGuards(AuthGuard(), UserRoleGuard)
+  @Auth(ValidRoles.admin)
+  @ApiOperation({ summary: 'Crear un nuevo producto (Admin)' })
+  @ApiBaseResponse(Product, 'Producto creado exitosamente')
+  @ApiValidationResponse()
   create(@Body() createProductDto: CreateProductDto) {
     return this.productsService.create(createProductDto);
   }
 
   @Get()
+  @ApiOperation({ summary: 'Obtener todos los productos con paginación' })
+  @ApiResponse({ status: 200, type: ProductListResponseDto })
+  @ApiValidationResponse()
   findAll(@Query() paginationDto: PaginationDto) {
     return this.productsService.findAll(paginationDto);
   }
 
+  @Post('upload-temp')
+  @Auth(ValidRoles.admin)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Subir imagen temporal a Cloudinary (Admin)' })
+  @ApiBaseResponse(TempImageDataDto, 'Imagen subida con éxito')
+  @ApiFileResponse()
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { image: { type: 'string', format: 'binary' } },
+    },
+  })
+  @UseInterceptors(FileInterceptor('image'))
+  async uploadTempImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Asegúrese de enviar una imagen');
+    const result = await this.filesService.uploadImage(file);
+    return { imageUrl: result.secure_url };
+  }
+
   @Get(':id')
+  @ApiOperation({ summary: 'Obtener un producto por ID' })
+  @ApiBaseResponse(Product, 'Producto obtenido')
+  @ApiIdResponse()
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.productsService.findOne(id);
   }
 
-  @Post('upload-temp')
-  @RoleProtected(ValidRoles.admin)
-  @UseGuards(AuthGuard(), UserRoleGuard)
-  @UseInterceptors(FileInterceptor('image'))
-  async uploadTempImage(@UploadedFile() file: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('Asegúrese de enviar una imagen');
-    }
-
-    const result = await this.filesService.uploadImage(file);
-    return {
-      imageUrl: result.secure_url,
-    };
-  }
-
   @Post(':id/upload-multiple')
+  @Auth(ValidRoles.admin)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Subir imágenes a un producto' })
+  @ApiBaseResponse(MultipleImageDataDto, 'Imágenes vinculadas correctamente')
+  @ApiIdResponse()
+  @ApiFileResponse()
+  @ApiParam({ name: 'id', description: 'UUID del producto' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        images: { type: 'array', items: { type: 'string', format: 'binary' } },
+      },
+    },
+  })
   @UseInterceptors(FilesInterceptor('images', 5))
   async uploadProductImage(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
-    if (!files || files.length === 0) {
+    if (!files || files.length === 0)
       throw new BadRequestException('No se subieron imágenes');
-    }
-
     return await this.productsService.uploadMultipleImages(id, files);
   }
 
   @Patch(':id')
-  @RoleProtected(ValidRoles.admin, ValidRoles.superUser)
-  @UseGuards(AuthGuard(), UserRoleGuard)
+  @Auth(ValidRoles.admin)
+  @ApiOperation({ summary: 'Actualizar producto' })
+  @ApiBaseResponse(Product, 'Producto actualizado')
+  @ApiIdResponse()
+  @ApiValidationResponse()
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateProductDto: UpdateProductDto,
@@ -88,24 +140,35 @@ export class ProductsController {
   }
 
   @Delete(':id')
-  @RoleProtected(ValidRoles.admin)
-  @UseGuards(AuthGuard(), UserRoleGuard)
-  remove(@Param('id') id: string) {
+  @Auth(ValidRoles.admin)
+  @ApiOperation({ summary: 'Eliminar producto' })
+  @ApiBaseResponse(MessageDataDto, 'Producto eliminado físicamente')
+  @ApiIdResponse()
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.productsService.remove(id);
   }
 
   @Delete(':id/image')
-  @RoleProtected(ValidRoles.admin)
-  @UseGuards(AuthGuard(), UserRoleGuard)
+  @Auth(ValidRoles.admin)
+  @ApiOperation({ summary: 'Quitar una imagen específica del producto' })
+  @ApiBaseResponse(MessageDataDto, 'Imagen removida de la base de datos')
+  @ApiIdResponse()
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        imageUrl: {
+          type: 'string',
+          example: 'https://res.cloudinary.com/image.jpg',
+        },
+      },
+    },
+  })
   async deleteImage(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('imageUrl') imageUrl: string,
   ) {
-    if (!imageUrl) {
-      throw new BadRequestException(
-        'Se requiere la URL de la imagen a eliminar',
-      );
-    }
+    if (!imageUrl) throw new BadRequestException('URL requerida');
     return await this.productsService.deleteProductImage(id, imageUrl);
   }
 }
