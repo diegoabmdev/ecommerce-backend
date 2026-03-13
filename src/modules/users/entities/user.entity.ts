@@ -28,6 +28,14 @@ export class User {
   @Column({ select: false })
   password: string;
 
+  @ApiProperty({ example: 'Diego Abanto', description: 'Nombre completo' })
+  @Column({ type: 'text', nullable: true })
+  fullName: string;
+
+  @ApiProperty({ example: '+56912345678', description: 'Teléfono de contacto' })
+  @Column({ type: 'text', nullable: true })
+  phone: string;
+
   @ApiProperty({
     example: 'customer',
     description: 'Rol del usuario en la plataforma',

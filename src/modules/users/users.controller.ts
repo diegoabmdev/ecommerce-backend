@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   ParseUUIDPipe,
+  Patch,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
@@ -20,6 +21,8 @@ import {
   ApiServerErrors,
 } from '../../common/decorators/swagger-errors.decorator';
 import { ValidRoles } from '../auth/interfaces/valid-roles';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { GetUser } from '../auth/decorators/get-user.decorator';
 
 @ApiTags('Users')
 @ApiServerErrors()
@@ -54,5 +57,30 @@ export class UsersController {
   @ApiIdResponse()
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
+  }
+
+  @Patch('me')
+  @Auth()
+  @ApiOperation({
+    summary: 'Actualizar mi perfil',
+    description:
+      'Permite al usuario autenticado cambiar su nombre, teléfono, correo o contraseña.',
+  })
+  @ApiBaseResponse(User, 'Perfil actualizado correctamente')
+  @ApiValidationResponse()
+  updateMe(@GetUser() user: User, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.update(user.id, updateUserDto);
+  }
+
+  @Patch(':id')
+  @Auth(ValidRoles.admin)
+  @ApiOperation({ summary: 'Actualizar usuario por ID (Admin)' })
+  @ApiBaseResponse(User, 'Usuario actualizado por el administrador')
+  @ApiIdResponse()
+  updateAdmin(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.update(id, updateUserDto);
   }
 }

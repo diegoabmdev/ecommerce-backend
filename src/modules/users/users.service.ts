@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -51,5 +52,22 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    const { password, ...toUpdate } = updateUserDto;
+
+    const user = await this.findOne(id);
+
+    if (password) {
+      user.password = bcrypt.hashSync(password, 10);
+    }
+
+    this.userRepository.merge(user, toUpdate);
+    const updatedUser = await this.userRepository.save(user);
+
+    const userResponse = { ...updatedUser };
+    delete (userResponse as Partial<User>).password;
+    return userResponse;
   }
 }
