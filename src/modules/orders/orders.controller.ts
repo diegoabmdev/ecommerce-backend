@@ -26,6 +26,7 @@ import { OrderCreatedDataDto } from 'src/common/responses/order-responses.dto';
 import { MessageDataDto } from 'src/common/responses/image-responses.dto';
 import { UpdateOrderStatusDto } from './dto/update-order.dto';
 import { ValidRoles } from '../auth/interfaces/valid-roles';
+import { CreateOrderDto } from './dto/create-order.dto';
 
 @ApiTags('Orders')
 @ApiServerErrors()
@@ -34,6 +35,7 @@ import { ValidRoles } from '../auth/interfaces/valid-roles';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  //
   @Post('checkout')
   @ApiOperation({
     summary: 'Crear una orden y generar link de pago',
@@ -45,10 +47,11 @@ export class OrdersController {
     'Orden creada. Redirigir al usuario al checkoutUrl',
   )
   @ApiValidationResponse()
-  create(@GetUser() user: User) {
-    return this.ordersService.create(user);
+  create(@GetUser() user: User, @Body() createOrderDto: CreateOrderDto) {
+    return this.ordersService.create(user, createOrderDto);
   }
 
+  //
   @Get()
   @ApiOperation({ summary: 'Obtener historial de órdenes del usuario' })
   @ApiBaseResponse(Order, 'Lista de órdenes obtenida con éxito')
@@ -56,6 +59,7 @@ export class OrdersController {
     return this.ordersService.findAllByUser(user);
   }
 
+  //
   @Patch(':id/status')
   @Auth(ValidRoles.admin)
   @ApiOperation({

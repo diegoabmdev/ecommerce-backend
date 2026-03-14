@@ -1,16 +1,26 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
+
 import { User } from './entities/user.entity';
+import { Address } from './entities/address.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateAddressDto } from './dto/create-address.dto';
+import { IsNull } from 'typeorm';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Address)
+    private readonly addressRepository: Repository<Address>,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -69,5 +79,68 @@ export class UsersService {
     const userResponse = { ...updatedUser };
     delete (userResponse as Partial<User>).password;
     return userResponse;
+  }
+
+  async addAddress(user: User, createAddressDto: CreateAddressDto) {
+    const { street, number, apartment, city, isDefault, ...addressData } =
+      createAddressDto;
+
+    const existingAddress = await this.addressRepository.findOne({
+      where: {
+        street,
+        number,
+        apartment: apartment ? apartment : IsNull(),
+        city,
+        user: { id: user.id },
+      },
+    });
+
+    if (existingAddress) {
+      throw new BadRequestException(
+        'Esta dirección ya se encuentra registrada en tu perfil',
+      );
+    }
+
+    if (isDefault) {
+      await this.addressRepository.update(
+        { user: { id: user.id }, isDefault: true },
+        { isDefault: false },
+      );
+    }
+
+    const newAddress = this.addressRepository.create({
+      street,
+      number,
+      apartment,
+      city,
+      ...addressData,
+      isDefault: isDefault || false,
+      user,
+    });
+
+    const savedAddress = await this.addressRepository.save(newAddress);
+    const addressResponse: Omit<Address, 'user'> = { ...savedAddress };
+    delete (addressResponse as Partial<Address>).user;
+
+    return addressResponse;
+  }
+
+  async findAddresses(userId: string) {
+    return await this.addressRepository.find({
+      where: { user: { id: userId } },
+      order: { isDefault: 'DESC', street: 'ASC' },
+    });
+  }
+
+  async removeAddress(addressId: string, userId: string) {
+    const address = await this.addressRepository.findOneBy({
+      id: addressId,
+      user: { id: userId },
+    });
+
+    if (!address) throw new NotFoundException('Dirección no encontrada');
+
+    await this.addressRepository.remove(address);
+    return { message: 'Dirección eliminada correctamente' };
   }
 }

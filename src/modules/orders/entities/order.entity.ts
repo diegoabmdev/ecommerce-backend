@@ -8,6 +8,8 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { OrderItem } from './order-item.entity';
+import { Address } from 'src/modules/users/entities/address.entity';
+import { ApiProperty } from '@nestjs/swagger';
 
 export enum OrderStatus {
   PENDING = 'PENDING',
@@ -33,6 +35,10 @@ export class Order {
     default: OrderStatus.PENDING,
   })
   status: OrderStatus;
+
+  @ApiProperty({ type: () => Address })
+  @ManyToOne(() => Address, { nullable: true, eager: true })
+  address: Address;
 
   @ManyToOne(() => User, (user) => user.id)
   user: User;

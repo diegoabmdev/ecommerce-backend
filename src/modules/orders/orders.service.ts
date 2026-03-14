@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { CartService } from '../cart/cart.service';
@@ -7,6 +12,8 @@ import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { PaymentsService } from '../payments/payments.service';
 import { UpdateOrderStatusDto } from './dto/update-order.dto';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { Address } from '../users/entities/address.entity';
 
 @Injectable()
 export class OrdersService {
@@ -18,9 +25,11 @@ export class OrdersService {
     private readonly paymentsService: PaymentsService,
   ) {}
 
-  async create(user: User) {
-    const cart = await this.cartService.getCart(user);
+  async create(user: User, createOrderDto: CreateOrderDto) {
+    const { addressId } = createOrderDto;
 
+    // 1. Obtener el carrito
+    const cart = await this.cartService.getCart(user);
     if (cart.items.length === 0)
       throw new BadRequestException('El carrito está vacío');
 
@@ -29,15 +38,27 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     try {
+      // 2. Validar que la dirección exista y pertenezca al usuario
+      const address = await queryRunner.manager.findOne(Address, {
+        where: { id: addressId, user: { id: user.id } },
+      });
+
+      if (!address) {
+        throw new NotFoundException('La dirección seleccionada no es válida');
+      }
+
+      // 3. Crear la cabecera de la Orden con la dirección vinculada
       const order = queryRunner.manager.create(Order, {
         total: cart.summary.total,
         tax: cart.summary.tax,
         user: user,
+        address: address, // <--- Vinculación de dirección
         status: OrderStatus.PENDING,
       });
 
       const savedOrder = await queryRunner.manager.save(order);
 
+      // 4. Procesar items y stock
       for (const item of cart.items) {
         const product = await queryRunner.manager.findOneBy(Product, {
           id: item.productId,
@@ -49,9 +70,11 @@ export class OrdersService {
           );
         }
 
+        // Descontar stock
         product.stock -= item.quantity;
         await queryRunner.manager.save(product);
 
+        // Crear el item de la orden
         const orderItem = queryRunner.manager.create(OrderItem, {
           order: savedOrder,
           product: product,
@@ -62,6 +85,7 @@ export class OrdersService {
         await queryRunner.manager.save(orderItem);
       }
 
+      // 5. Limpiar carrito y generar pago
       await this.cartService.clearCart(user.id);
 
       const paymentPreference = await this.paymentsService.createPreference(

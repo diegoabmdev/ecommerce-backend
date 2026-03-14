@@ -1,7 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  Unique,
+} from 'typeorm';
 import { User } from './user.entity';
 
 @Entity('addresses')
+@Unique(['street', 'number', 'apartment', 'city', 'user'])
 export class Address {
   @PrimaryGeneratedColumn('uuid')
   id: string;
