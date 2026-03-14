@@ -44,6 +44,18 @@ export class User {
   @Column({ default: 'customer' })
   role: string;
 
+  @Column('text', {
+    nullable: true,
+    select: false,
+  })
+  resetPasswordToken?: string | null;
+
+  @Column('timestamp', {
+    nullable: true,
+    select: false,
+  })
+  resetPasswordExpires?: Date | null;
+
   @ApiProperty({
     example: true,
     description: 'Estado de la cuenta',

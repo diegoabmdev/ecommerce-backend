@@ -8,6 +8,8 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from '../users/dto/forgot-password.dto';
+import { ResetPasswordDto } from '../users/dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -30,5 +32,13 @@ export class AuthService {
       user: { email: user.email, id: user.id },
       token: this.jwtService.sign({ id: user.id }),
     };
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    return this.usersService.forgotPassword(forgotPasswordDto);
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    return this.usersService.resetPassword(resetPasswordDto);
   }
 }

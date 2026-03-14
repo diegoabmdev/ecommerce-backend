@@ -6,10 +6,12 @@ import { User } from './entities/user.entity';
 import { Address } from './entities/address.entity';
 import { AuthModule } from '../auth/auth.module';
 import { AddressesController } from './addresses.controller';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Address]),
+    MailModule,
     forwardRef(() => AuthModule),
   ],
   controllers: [UsersController, AddressesController],

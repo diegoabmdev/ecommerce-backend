@@ -13,6 +13,10 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { IsNull } from 'typeorm';
+import * as crypto from 'crypto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { MailService } from '../mail/mail.service';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class UsersService {
@@ -21,6 +25,7 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Address)
     private readonly addressRepository: Repository<Address>,
+    private readonly mailService: MailService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -142,5 +147,65 @@ export class UsersService {
 
     await this.addressRepository.remove(address);
     return { message: 'Dirección eliminada correctamente' };
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const { email } = forgotPasswordDto;
+    const user = await this.userRepository.findOne({
+      where: { email },
+    });
+
+    if (!user)
+      return { message: 'Si el correo existe, recibirás un mensaje pronto.' };
+
+    if (user.resetPasswordExpires) {
+      const now = new Date();
+      if (user.resetPasswordExpires.getTime() - now.getTime() > 58 * 60000) {
+        throw new BadRequestException('Espera antes de pedir otro correo.');
+      }
+    }
+
+    const token = crypto.randomBytes(20).toString('hex');
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 1);
+
+    user.resetPasswordToken = token;
+    user.resetPasswordExpires = expires;
+
+    await this.userRepository.save(user);
+
+    await this.mailService.sendResetPasswordEmail(user.email, token);
+
+    return { message: 'Correo de recuperación enviado.' };
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const { token, newPassword } = resetPasswordDto;
+
+    const user = await this.userRepository.findOne({
+      where: { resetPasswordToken: token },
+      select: ['id', 'password', 'resetPasswordToken', 'resetPasswordExpires'],
+    });
+
+    if (!user) {
+      throw new BadRequestException('El token de recuperación es inválido');
+    }
+
+    const now = new Date();
+    if (user.resetPasswordExpires && now > user.resetPasswordExpires) {
+      throw new BadRequestException(
+        'El token ha expirado. Solicita uno nuevo.',
+      );
+    }
+
+    user.password = bcrypt.hashSync(newPassword, 10);
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+
+    await this.userRepository.save(user);
+
+    return {
+      message: 'Tu contraseña ha sido actualizada exitosamente',
+    };
   }
 }

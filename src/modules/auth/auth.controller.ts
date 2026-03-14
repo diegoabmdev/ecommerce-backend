@@ -10,6 +10,8 @@ import {
 } from '../../common/decorators/swagger-errors.decorator';
 import { LoginResponseDataDto } from 'src/common/responses/auth-responses.dto';
 import { Auth } from '../../common/decorators/auth.decorator';
+import { ResetPasswordDto } from '../users/dto/reset-password.dto';
+import { MessageDataDto } from 'src/common/responses/image-responses.dto';
 
 @ApiTags('Auth')
 @ApiServerErrors()
@@ -35,5 +37,14 @@ export class AuthController {
   @ApiBaseResponse(LoginResponseDataDto, 'Token renovado/válido')
   checkAuthStatus(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({
+    summary: 'Cambiar la contraseña usando el token de recuperación',
+  })
+  @ApiBaseResponse(MessageDataDto, 'Contraseña actualizada correctamente')
+  resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
   }
 }
