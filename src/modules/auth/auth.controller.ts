@@ -12,6 +12,7 @@ import { LoginResponseDataDto } from 'src/common/responses/auth-responses.dto';
 import { Auth } from '../../common/decorators/auth.decorator';
 import { ResetPasswordDto } from '../users/dto/reset-password.dto';
 import { MessageDataDto } from 'src/common/responses/image-responses.dto';
+import { ForgotPasswordDto } from '../users/dto/forgot-password.dto';
 
 @ApiTags('Auth')
 @ApiServerErrors()
@@ -39,11 +40,24 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Solicitar recuperación de contraseña',
+    description:
+      'Envía un correo electrónico con un token único para restablecer la clave.',
+  })
+  @ApiBaseResponse(MessageDataDto, 'Correo enviado (si el usuario existe)')
+  @ApiValidationResponse()
+  forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
   @Post('reset-password')
   @ApiOperation({
     summary: 'Cambiar la contraseña usando el token de recuperación',
   })
   @ApiBaseResponse(MessageDataDto, 'Contraseña actualizada correctamente')
+  @ApiValidationResponse()
   resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);
   }
