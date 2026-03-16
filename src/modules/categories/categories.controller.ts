@@ -7,6 +7,8 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
@@ -23,7 +25,7 @@ import {
   ApiValidationResponse,
   ApiServerErrors,
 } from '../../common/decorators/swagger-errors.decorator';
-import { MessageDataDto } from 'src/common/responses/image-responses.dto';
+import { BaseResponseDto } from '../../common/responses/base-response.dto';
 
 @ApiTags('Categories')
 @ApiServerErrors()
@@ -33,32 +35,41 @@ export class CategoriesController {
 
   @Post()
   @Auth(ValidRoles.admin)
+  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una nueva categoría (Admin)' })
-  @ApiBaseResponse(Category, 'Categoría creada con éxito')
+  @ApiBaseResponse(Category, 'Categoría creada con éxito', HttpStatus.CREATED)
   @ApiValidationResponse()
   create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoriesService.create(createCategoryDto);
   }
 
   @Get()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listar todas las categorías' })
-  @ApiBaseResponse(Category, 'Lista de categorías obtenida')
+  @ApiBaseResponse(
+    Category,
+    'Lista de categorías obtenida',
+    HttpStatus.OK,
+    true,
+  )
   findAll() {
     return this.categoriesService.findAll();
   }
 
   @Get('menu-stats')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Obtener categorías con conteo de productos activos',
   })
-  @ApiBaseResponse(Category, 'Categorias activas')
+  @ApiBaseResponse(Category, 'Categorias activas', HttpStatus.OK)
   getMenuStats() {
     return this.categoriesService.findAllWithCount();
   }
 
   @Get(':id')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Obtener una categoría por ID' })
-  @ApiBaseResponse(Category, 'Categoría encontrada')
+  @ApiBaseResponse(Category, 'Categoría encontrada', HttpStatus.OK)
   @ApiIdResponse()
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.categoriesService.findOne(id);
@@ -66,8 +77,9 @@ export class CategoriesController {
 
   @Patch(':id')
   @Auth(ValidRoles.admin)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar una categoría (Admin)' })
-  @ApiBaseResponse(Category, 'Categoría actualizada con éxito')
+  @ApiBaseResponse(Category, 'Categoría actualizada con éxito', HttpStatus.OK)
   @ApiIdResponse()
   @ApiValidationResponse()
   update(
@@ -78,9 +90,16 @@ export class CategoriesController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.OK)
   @Auth(ValidRoles.admin)
   @ApiOperation({ summary: 'Eliminar una categoría (Admin)' })
-  @ApiBaseResponse(MessageDataDto, 'Categoría eliminada permanentemente')
+  @ApiBaseResponse(
+    BaseResponseDto,
+    'Categoría eliminada permanentemente',
+    HttpStatus.OK,
+    false,
+    false,
+  )
   @ApiIdResponse()
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.categoriesService.remove(id);
