@@ -19,7 +19,7 @@ export class User {
   id: string;
 
   @ApiProperty({
-    example: 'usuario@correo.com',
+    example: 'admin@ejemplo.com',
     description: 'Correo electrónico único',
   })
   @Column({ unique: true })
@@ -28,11 +28,19 @@ export class User {
   @Column({ select: false })
   password: string;
 
-  @ApiProperty({ example: 'Diego Abanto', description: 'Nombre completo' })
+  @ApiProperty({
+    example: 'Diego Abanto',
+    description: 'Nombre completo',
+    nullable: true,
+  })
   @Column({ type: 'text', nullable: true })
   fullName: string;
 
-  @ApiProperty({ example: '+56912345678', description: 'Teléfono de contacto' })
+  @ApiProperty({
+    example: '+56912345678',
+    description: 'Teléfono',
+    nullable: true,
+  })
   @Column({ type: 'text', nullable: true })
   phone: string;
 
@@ -63,12 +71,18 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
+  @ApiProperty({
+    type: () => [Address],
+    description: 'Lista de direcciones asociadas',
+  })
   @OneToMany(() => Address, (address) => address.user, { cascade: true })
   addresses: Address[];
 
+  @ApiProperty({ example: '2026-03-15T17:00:00.000Z' })
   @CreateDateColumn()
   createdAt: Date;
 
+  @ApiProperty({ example: '2026-03-15T17:00:00.000Z' })
   @UpdateDateColumn()
   updatedAt: Date;
 }

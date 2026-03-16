@@ -17,6 +17,11 @@ import * as crypto from 'crypto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { MailService } from '../mail/mail.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { PaginationDto } from 'src/common/dtos/pagination.dto';
+
+interface AuthMessageResponse {
+  message: string;
+}
 
 @Injectable()
 export class UsersService {
@@ -50,10 +55,37 @@ export class UsersService {
     });
   }
 
-  async findAll() {
-    return await this.userRepository.find({
-      relations: ['addresses'],
-    });
+  async findAll(paginationDto: PaginationDto) {
+    const { limit = 10, offset = 0, search } = paginationDto;
+
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.addresses', 'addresses');
+
+    if (search) {
+      queryBuilder.where(
+        'user.fullName ILIKE :search OR user.email ILIKE :search',
+        {
+          search: `%${search}%`,
+        },
+      );
+    }
+
+    const [users, total] = await queryBuilder
+      .take(limit)
+      .skip(offset)
+      .getManyAndCount();
+
+    return {
+      data: users,
+      meta: {
+        total,
+        page: Math.floor(offset / limit) + 1,
+        lastPage: Math.ceil(total / limit),
+        limit,
+        offset,
+      },
+    };
   }
 
   async findOne(id: string) {
@@ -86,25 +118,9 @@ export class UsersService {
     return userResponse;
   }
 
-  async addAddress(user: User, createAddressDto: CreateAddressDto) {
-    const { street, number, apartment, city, isDefault, ...addressData } =
-      createAddressDto;
-
-    const existingAddress = await this.addressRepository.findOne({
-      where: {
-        street,
-        number,
-        apartment: apartment ? apartment : IsNull(),
-        city,
-        user: { id: user.id },
-      },
-    });
-
-    if (existingAddress) {
-      throw new BadRequestException(
-        'Esta dirección ya se encuentra registrada en tu perfil',
-      );
-    }
+  async addAddress(user: User, dto: CreateAddressDto) {
+    const { isDefault, ...addressData } = dto;
+    await this.checkExistingAddress(user.id, dto);
 
     if (isDefault) {
       await this.addressRepository.update(
@@ -114,12 +130,8 @@ export class UsersService {
     }
 
     const newAddress = this.addressRepository.create({
-      street,
-      number,
-      apartment,
-      city,
       ...addressData,
-      isDefault: isDefault || false,
+      isDefault: isDefault ?? false,
       user,
     });
 
@@ -127,14 +139,42 @@ export class UsersService {
     const addressResponse: Omit<Address, 'user'> = { ...savedAddress };
     delete (addressResponse as Partial<Address>).user;
 
-    return addressResponse;
+    return {
+      message: 'Dirección añadida correctamente a tu perfil',
+      data: savedAddress,
+    };
   }
 
-  async findAddresses(userId: string) {
-    return await this.addressRepository.find({
+  private async checkExistingAddress(userId: string, dto: CreateAddressDto) {
+    const exists = await this.addressRepository.findOne({
+      where: {
+        street: dto.street,
+        number: dto.number,
+        apartment: dto.apartment ?? IsNull(),
+        city: dto.city,
+        user: { id: userId },
+      },
+    });
+
+    if (exists) {
+      throw new BadRequestException('Esta dirección ya existe en tu cuenta');
+    }
+  }
+
+  async findAddresses(userId: string, paginationDto: PaginationDto) {
+    const { limit = 10, offset = 0 } = paginationDto;
+
+    const [addresses, total] = await this.addressRepository.findAndCount({
       where: { user: { id: userId } },
       order: { isDefault: 'DESC', street: 'ASC' },
+      take: limit,
+      skip: offset,
     });
+
+    return {
+      data: addresses,
+      meta: { total, limit, offset },
+    };
   }
 
   async removeAddress(addressId: string, userId: string) {
@@ -149,7 +189,9 @@ export class UsersService {
     return { message: 'Dirección eliminada correctamente' };
   }
 
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+  async forgotPassword(
+    forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<AuthMessageResponse> {
     const { email } = forgotPasswordDto;
     const user = await this.userRepository.findOne({
       where: { email },
@@ -179,7 +221,9 @@ export class UsersService {
     return { message: 'Correo de recuperación enviado.' };
   }
 
-  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<AuthMessageResponse> {
     const { token, newPassword } = resetPasswordDto;
 
     const user = await this.userRepository.findOne({

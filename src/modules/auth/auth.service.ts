@@ -11,6 +11,10 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from '../users/dto/forgot-password.dto';
 import { ResetPasswordDto } from '../users/dto/reset-password.dto';
 
+interface AuthMessageResponse {
+  message: string;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -34,11 +38,15 @@ export class AuthService {
     };
   }
 
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
-    return this.usersService.forgotPassword(forgotPasswordDto);
+  async forgotPassword(
+    forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<AuthMessageResponse> {
+    return await this.usersService.forgotPassword(forgotPasswordDto);
   }
 
-  async resetPassword(resetPasswordDto: ResetPasswordDto) {
-    return this.usersService.resetPassword(resetPasswordDto);
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<AuthMessageResponse> {
+    return await this.usersService.resetPassword(resetPasswordDto);
   }
 }

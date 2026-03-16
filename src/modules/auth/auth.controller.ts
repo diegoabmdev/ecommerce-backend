@@ -14,6 +14,16 @@ import { ResetPasswordDto } from '../users/dto/reset-password.dto';
 import { MessageDataDto } from 'src/common/responses/image-responses.dto';
 import { ForgotPasswordDto } from '../users/dto/forgot-password.dto';
 
+interface AuthMessageResponse {
+  message: string;
+}
+
+interface IAuthService {
+  forgotPassword(dto: ForgotPasswordDto): Promise<AuthMessageResponse>;
+  resetPassword(dto: ResetPasswordDto): Promise<AuthMessageResponse>;
+  login(dto: LoginDto): any;
+}
+
 @ApiTags('Auth')
 @ApiServerErrors()
 @Controller('auth')
@@ -48,8 +58,11 @@ export class AuthController {
   })
   @ApiBaseResponse(MessageDataDto, 'Correo enviado (si el usuario existe)')
   @ApiValidationResponse()
-  forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(forgotPasswordDto);
+  async forgotPassword(
+    @Body() forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<AuthMessageResponse> {
+    const service = this.authService as IAuthService;
+    return await service.forgotPassword(forgotPasswordDto);
   }
 
   @Post('reset-password')
@@ -58,7 +71,10 @@ export class AuthController {
   })
   @ApiBaseResponse(MessageDataDto, 'Contraseña actualizada correctamente')
   @ApiValidationResponse()
-  resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    return this.authService.resetPassword(resetPasswordDto);
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+  ): Promise<AuthMessageResponse> {
+    const service = this.authService as IAuthService;
+    return await service.resetPassword(resetPasswordDto);
   }
 }
