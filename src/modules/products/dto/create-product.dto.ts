@@ -85,11 +85,11 @@ export class CreateProductDto {
 
   @ApiProperty({
     example: 1.2,
-    description: 'Peso del producto en kilogramos',
+    description: 'Peso del producto en kilogramos (kg)',
     required: false,
   })
   @IsNumber()
-  @Min(0)
+  @Min(0, { message: 'El peso no puede ser negativo' })
   @IsOptional()
   weight?: number;
 
@@ -116,6 +116,7 @@ export class CreateProductDto {
     example: ['gaming', 'setup', 'pc'],
     description: 'Etiquetas para búsqueda y filtrado',
     required: false,
+    isArray: true,
   })
   @IsString({ each: true })
   @IsArray()

@@ -1,3 +1,4 @@
+//src/common/decorators/api-res-generic.decorator.ts
 import { applyDecorators, HttpStatus, Type } from '@nestjs/common';
 import { ApiExtraModels, ApiResponse, getSchemaPath } from '@nestjs/swagger';
 import {
@@ -11,12 +12,15 @@ export const ApiBaseResponse = <TModel extends Type<any>>(
   description: string = 'Operación exitosa',
   status: number = HttpStatus.OK,
   isArray: boolean = false,
+  includeData: boolean = true,
 ) => {
-  const properties: Record<string, SchemaObject | ReferenceObject> = {
-    data: isArray
+  const properties: Record<string, SchemaObject | ReferenceObject> = {};
+
+  if (includeData) {
+    properties.data = isArray
       ? { type: 'array', items: { $ref: getSchemaPath(model) } }
-      : { $ref: getSchemaPath(model) },
-  };
+      : { $ref: getSchemaPath(model) };
+  }
 
   if (isArray) {
     properties.meta = {
@@ -40,6 +44,7 @@ export const ApiBaseResponse = <TModel extends Type<any>>(
         allOf: [
           { $ref: getSchemaPath(BaseResponseDto) },
           {
+            type: 'object',
             properties: properties,
           },
         ],

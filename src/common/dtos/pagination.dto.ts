@@ -1,40 +1,39 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsPositive, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PaginationDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     default: 10,
+    example: 10,
     description: '¿Cuántos elementos quieres por página?',
-    required: false,
   })
   @IsOptional()
   @IsPositive()
   @Type(() => Number)
   limit?: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     default: 0,
+    example: 0,
     description: '¿Cuántos elementos quieres saltar? (Paginación)',
-    required: false,
   })
   @IsOptional()
   @Min(0)
   @Type(() => Number)
   offset?: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Término de búsqueda (título del producto)',
-    required: false,
     example: 'silla',
   })
   @IsOptional()
   @IsString()
   search?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Filtrar por ID de categoría',
-    required: false,
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
   @IsOptional()
   @IsString()

@@ -12,11 +12,12 @@ import {
   UploadedFiles,
   UploadedFile,
   ParseUUIDPipe,
+  HttpStatus,
+  HttpCode,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiConsumes,
   ApiBody,
   ApiParam,
@@ -27,7 +28,7 @@ import { FilesService } from '../files/files.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ValidRoles } from '../auth/interfaces/valid-roles';
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { Product } from './entities/product.entity';
 
@@ -40,12 +41,11 @@ import {
   ApiServerErrors,
 } from '../../common/decorators/swagger-errors.decorator';
 
-import { ProductListResponseDto } from 'src/common/responses/product-list-response.dto';
 import {
   TempImageDataDto,
   MultipleImageDataDto,
-  MessageDataDto,
-} from 'src/common/responses/image-responses.dto';
+} from '../../common/responses/image-responses.dto';
+import { BaseResponseDto } from '../../common/responses/base-response.dto';
 
 @ApiTags('Products')
 @ApiServerErrors()
@@ -58,26 +58,32 @@ export class ProductsController {
 
   @Post()
   @Auth(ValidRoles.admin)
-  @ApiOperation({ summary: 'Crear un nuevo producto (Admin)' })
-  @ApiBaseResponse(Product, 'Producto creado exitosamente')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Crear un nuevo producto' })
+  @ApiBaseResponse(Product, 'Producto creado', HttpStatus.CREATED)
   @ApiValidationResponse()
   create(@Body() createProductDto: CreateProductDto) {
     return this.productsService.create(createProductDto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Obtener todos los productos con paginación' })
-  @ApiResponse({ status: 200, type: ProductListResponseDto })
-  @ApiValidationResponse()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Listado paginado de productos' })
+  @ApiBaseResponse(Product, 'Listado obtenido', HttpStatus.OK, true)
   findAll(@Query() paginationDto: PaginationDto) {
     return this.productsService.findAll(paginationDto);
   }
 
   @Post('upload-temp')
   @Auth(ValidRoles.admin)
+  @HttpCode(HttpStatus.CREATED)
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Subir imagen temporal a Cloudinary (Admin)' })
-  @ApiBaseResponse(TempImageDataDto, 'Imagen subida con éxito')
+  @ApiBaseResponse(
+    TempImageDataDto,
+    'Imagen subida con éxito',
+    HttpStatus.CREATED,
+  )
   @ApiFileResponse()
   @ApiBody({
     schema: {
@@ -93,8 +99,9 @@ export class ProductsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener un producto por ID' })
-  @ApiBaseResponse(Product, 'Producto obtenido')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Obtener producto por ID' })
+  @ApiBaseResponse(Product, 'Producto encontrado', HttpStatus.OK)
   @ApiIdResponse()
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.productsService.findOne(id);
@@ -102,9 +109,14 @@ export class ProductsController {
 
   @Post(':id/upload-multiple')
   @Auth(ValidRoles.admin)
+  @HttpCode(HttpStatus.CREATED)
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Subir imágenes a un producto' })
-  @ApiBaseResponse(MultipleImageDataDto, 'Imágenes vinculadas correctamente')
+  @ApiBaseResponse(
+    MultipleImageDataDto,
+    'Imágenes vinculadas correctamente',
+    HttpStatus.CREATED,
+  )
   @ApiIdResponse()
   @ApiFileResponse()
   @ApiParam({ name: 'id', description: 'UUID del producto' })
@@ -128,8 +140,9 @@ export class ProductsController {
 
   @Patch(':id')
   @Auth(ValidRoles.admin)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar producto' })
-  @ApiBaseResponse(Product, 'Producto actualizado')
+  @ApiBaseResponse(Product, 'Producto actualizado', HttpStatus.OK)
   @ApiIdResponse()
   @ApiValidationResponse()
   update(
@@ -141,8 +154,15 @@ export class ProductsController {
 
   @Delete(':id')
   @Auth(ValidRoles.admin)
-  @ApiOperation({ summary: 'Eliminar producto' })
-  @ApiBaseResponse(MessageDataDto, 'Producto eliminado físicamente')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminación física del producto' })
+  @ApiBaseResponse(
+    BaseResponseDto,
+    'Producto eliminado',
+    HttpStatus.OK,
+    false,
+    false,
+  )
   @ApiIdResponse()
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.productsService.remove(id);
@@ -150,8 +170,15 @@ export class ProductsController {
 
   @Delete(':id/image')
   @Auth(ValidRoles.admin)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Quitar una imagen específica del producto' })
-  @ApiBaseResponse(MessageDataDto, 'Imagen removida de la base de datos')
+  @ApiBaseResponse(
+    BaseResponseDto,
+    'Imagen removida',
+    HttpStatus.OK,
+    false,
+    false,
+  )
   @ApiIdResponse()
   @ApiBody({
     schema: {

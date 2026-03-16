@@ -13,6 +13,11 @@ import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { FilesService } from '../files/files.service';
 import { CategoriesService } from '../categories/categories.service';
 
+interface DBError {
+  code: string;
+  detail: string;
+}
+
 @Injectable()
 export class ProductsService {
   private readonly logger = new Logger('ProductsService');
@@ -25,9 +30,8 @@ export class ProductsService {
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    const { categoryId, ...productDetails } = createProductDto;
-
-    const product = this.productRepository.create({ ...productDetails });
+    const { categoryId, ...details } = createProductDto;
+    const product = this.productRepository.create(details);
 
     if (categoryId) {
       const category = await this.categoriesService.findOneInternal(categoryId);
@@ -35,33 +39,38 @@ export class ProductsService {
       product.category = category;
     }
 
-    await this.productRepository.save(product);
-    return product;
+    try {
+      return await this.productRepository.save(product);
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
   }
 
   async uploadMultipleImages(productId: string, files: Express.Multer.File[]) {
-    const product = await this.productRepository.findOneBy({ id: productId });
+    const product = await this.findOne(productId);
 
-    if (!product) {
-      throw new NotFoundException(`Producto con ID ${productId} no encontrado`);
-    }
-
-    const uploadPromises = files.map((file) =>
-      this.filesService.uploadImage(file),
+    const uploadResults = await Promise.all(
+      files.map((file) => this.filesService.uploadImage(file)),
     );
-    const results = await Promise.all(uploadPromises);
 
-    if (!product.images) product.images = [];
-
-    const newUrls = results.map((res) => res.secure_url);
-    product.images = [...product.images, ...newUrls];
+    const newUrls = uploadResults.map((res) => res.secure_url);
+    product.images = [...(product.images || []), ...newUrls];
 
     await this.productRepository.save(product);
+    return { images: product.images };
+  }
 
-    return {
-      message: `${files.length} imágenes subidas con éxito`,
-      images: product.images,
-    };
+  private handleDBExceptions(error: unknown): never {
+    const dbError = error as DBError;
+
+    if (dbError.code === '23505') {
+      throw new BadRequestException(dbError.detail);
+    }
+
+    this.logger.error(error);
+    throw new BadRequestException(
+      'Error inesperado, revise los logs del servidor',
+    );
   }
 
   async deleteProductImage(productId: string, imageUrl: string) {
@@ -84,8 +93,6 @@ export class ProductsService {
         error,
       );
     }
-
-    return { message: 'Imagen eliminada correctamente' };
   }
 
   async findAll(paginationDto: PaginationDto) {
@@ -95,7 +102,7 @@ export class ProductsService {
     if (search) whereOptions.title = ILike(`%${search}%`);
     if (categoryId) whereOptions.category = { id: categoryId };
 
-    const [products, total] = await this.productRepository.findAndCount({
+    const [data, total] = await this.productRepository.findAndCount({
       take: limit,
       skip: offset,
       where: whereOptions,
@@ -104,13 +111,8 @@ export class ProductsService {
     });
 
     return {
-      data: products,
-      meta: {
-        total,
-        limit,
-        offset,
-        totalPages: Math.ceil(total / limit),
-      },
+      data,
+      meta: { total, limit, offset, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -156,9 +158,12 @@ export class ProductsService {
       const deletePromises = product.images.map((img) =>
         this.filesService.deleteImage(img),
       );
-      await Promise.all(deletePromises).catch((err) =>
-        this.logger.error('Error limpiando Cloudinary al borrar producto', err),
-      );
+      await Promise.all(deletePromises).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Unknown';
+        this.logger.error(
+          `Error limpiando Cloudinary al borrar producto: ${msg}`,
+        );
+      });
     }
 
     await this.productRepository.remove(product);

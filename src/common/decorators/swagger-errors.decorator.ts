@@ -1,3 +1,4 @@
+//src/common/decorators/swagger-errors.decorator.ts
 import { applyDecorators } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
 
