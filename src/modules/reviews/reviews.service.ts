@@ -14,6 +14,12 @@ import { CreateReviewDto } from './dto/create-review.dto';
 import { ProductsService } from '../products/products.service';
 import { OrdersService } from '../orders/orders.service';
 import { UpdateProductDto } from '../products/dto/update-product.dto';
+import { Product } from '../products/entities/product.entity';
+
+interface ReviewStats {
+  avgRating: string | null;
+  count: string | null;
+}
 
 @Injectable()
 export class ReviewsService {
@@ -30,9 +36,36 @@ export class ReviewsService {
     const { productId, rating, comment } = createReviewDto;
 
     await this.productsService.findOne(productId);
+    await this.validateUserCanReview(user.id, productId);
 
+    const review = this.reviewRepository.create({
+      rating,
+      comment,
+      user: { id: user.id } as User,
+      product: { id: productId } as Product,
+    });
+
+    await this.reviewRepository.save(review);
+
+    this.updateProductRating(productId).catch((err: unknown) => {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(
+        `Error updating rating for product ${productId}: ${errorMessage}`,
+      );
+    });
+
+    const userSafe = { ...review.user } as Partial<User>;
+    delete userSafe.password;
+
+    return {
+      ...review,
+      user: userSafe as User,
+    };
+  }
+
+  private async validateUserCanReview(userId: string, productId: string) {
     const hasBought = await this.ordersService.checkUserBoughtProduct(
-      user.id,
+      userId,
       productId,
     );
     if (!hasBought) {
@@ -42,27 +75,10 @@ export class ReviewsService {
     }
 
     const existingReview = await this.reviewRepository.findOne({
-      where: { user: { id: user.id }, product: { id: productId } },
+      where: { user: { id: userId }, product: { id: productId } },
     });
     if (existingReview)
       throw new BadRequestException('Ya has calificado este producto');
-
-    const review = this.reviewRepository.create({
-      rating,
-      comment,
-      user,
-      product: { id: productId },
-    });
-
-    await this.reviewRepository.save(review);
-
-    await this.updateProductRating(productId);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userWithoutPassword } = review.user;
-    review.user = userWithoutPassword as User;
-
-    return review;
   }
 
   async findByProduct(productId: string) {
@@ -98,15 +114,15 @@ export class ReviewsService {
   }
 
   private async updateProductRating(productId: string): Promise<void> {
-    const reviews = await this.reviewRepository.find({
-      where: { product: { id: productId } },
-    });
+    const stats = await this.reviewRepository
+      .createQueryBuilder('review')
+      .select('AVG(review.rating)', 'avgRating')
+      .addSelect('COUNT(review.id)', 'count')
+      .where('review.product = :productId', { productId })
+      .getRawOne<ReviewStats>();
 
-    const reviewCount = reviews.length;
-    const ratingAverage =
-      reviewCount > 0
-        ? reviews.reduce((acc, rev) => acc + rev.rating, 0) / reviewCount
-        : 0;
+    const ratingAverage = stats?.avgRating ? parseFloat(stats.avgRating) : 0;
+    const reviewCount = stats?.count ? parseInt(stats.count, 10) : 0;
 
     const updateData: UpdateProductDto = {
       ratingAverage: Number(ratingAverage.toFixed(1)),

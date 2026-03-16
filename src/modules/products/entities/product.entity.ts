@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Category } from 'src/modules/categories/entities/category.entity';
+import { Category } from '../../categories/entities/category.entity';
 import {
   Entity,
   Column,

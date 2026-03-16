@@ -6,6 +6,10 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  UseInterceptors,
+  ClassSerializerInterceptor,
+  HttpStatus,
+  HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
@@ -21,27 +25,33 @@ import {
   ApiValidationResponse,
   ApiServerErrors,
 } from '../../common/decorators/swagger-errors.decorator';
-import { MessageDataDto } from 'src/common/responses/image-responses.dto';
 import { Review } from './entities/review.entity';
 
 @ApiTags('Reviews')
 @ApiServerErrors()
 @Controller('reviews')
+@UseInterceptors(ClassSerializerInterceptor)
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
   @Post()
   @Auth()
+  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una reseña de producto' })
   @ApiValidationResponse()
-  @ApiBaseResponse(Review, 'Reseña creada')
+  @ApiBaseResponse(
+    Review,
+    'Reseña creada satisfactoriamente',
+    HttpStatus.CREATED,
+  )
   create(@Body() createReviewDto: CreateReviewDto, @GetUser() user: User) {
     return this.reviewsService.create(createReviewDto, user);
   }
 
   @Get('product/:productId')
-  @ApiOperation({ summary: 'Obtener reseñas de un producto específico' })
-  @ApiBaseResponse(Review, 'Reseñas del producto obtenidas')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Listado de reseñas de un producto' })
+  @ApiBaseResponse(Review, 'Listado obtenido', HttpStatus.OK, true)
   @ApiIdResponse()
   findByProduct(@Param('productId', ParseUUIDPipe) productId: string) {
     return this.reviewsService.findByProduct(productId);
@@ -49,8 +59,9 @@ export class ReviewsController {
 
   @Delete(':id')
   @Auth()
-  @ApiOperation({ summary: 'Eliminar una reseña propia' })
-  @ApiBaseResponse(MessageDataDto, 'Reseña eliminada')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar reseña' })
+  @ApiBaseResponse(Review, 'Reseña eliminada correctamente', HttpStatus.OK)
   @ApiIdResponse()
   remove(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: User) {
     return this.reviewsService.remove(id, user);

@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { OrderItem } from './order-item.entity';
-import { Address } from 'src/modules/users/entities/address.entity';
+import { Address } from '../../users/entities/address.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum OrderStatus {

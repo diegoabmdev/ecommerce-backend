@@ -1,4 +1,3 @@
-// src/common/decorators/auth.decorator.ts
 import { applyDecorators, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
