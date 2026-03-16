@@ -2,17 +2,19 @@ import {
   Injectable,
   BadRequestException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { Readable } from 'stream';
 
 interface DeleteApiResponse {
-  result: string;
-  [key: string]: any;
+  result: 'ok' | 'not found' | (string & {});
 }
 
 @Injectable()
 export class FilesService {
+  private readonly logger = new Logger('FilesService');
+
   async uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
     if (!file?.buffer) {
       throw new BadRequestException('El archivo no tiene un contenido válido');
@@ -30,43 +32,54 @@ export class FilesService {
           ],
         },
         (error, result) => {
-          if (error)
+          if (error) {
+            this.logger.error(`Cloudinary Error: ${error.message}`);
             return reject(
               new BadRequestException(`Cloudinary: ${error.message}`),
             );
-          if (!result)
+          }
+          if (!result) {
             return reject(
               new InternalServerErrorException(
                 'No se recibió respuesta de Cloudinary',
               ),
             );
+          }
           resolve(result);
         },
       );
 
-      const stream = new Readable();
-      stream.push(file.buffer);
-      stream.push(null);
-      stream.pipe(upload);
+      Readable.from(file.buffer).pipe(upload);
     });
   }
 
   async deleteImage(imageUrl: string): Promise<DeleteApiResponse> {
-    const parts = imageUrl.split('/');
-    const fileWithExtension = parts.pop() || '';
-    const folder = parts.pop() || '';
-    const publicId = `${folder}/${fileWithExtension.split('.')[0]}`;
+    try {
+      const regex = /\/upload\/(?:v\d+\/)?([^.]+)/;
+      const match = imageUrl.match(regex);
 
-    const result = (await cloudinary.uploader.destroy(
-      publicId,
-    )) as DeleteApiResponse;
+      if (!match) {
+        throw new BadRequestException('URL de imagen inválida');
+      }
 
-    if (result.result !== 'ok' && result.result !== 'not found') {
+      const publicId = match[1];
+
+      const result = (await cloudinary.uploader.destroy(
+        publicId,
+      )) as DeleteApiResponse;
+
+      if (result.result !== 'ok' && result.result !== 'not found') {
+        throw new InternalServerErrorException(
+          `Error al borrar en Cloudinary: ${result.result}`,
+        );
+      }
+
+      return result;
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
       throw new InternalServerErrorException(
-        `Error al borrar en Cloudinary: ${result.result}`,
+        'Error al procesar la eliminación de la imagen',
       );
     }
-
-    return result;
   }
 }
