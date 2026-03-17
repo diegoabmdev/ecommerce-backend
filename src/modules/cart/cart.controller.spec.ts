@@ -5,6 +5,7 @@ import { CartService } from './cart.service';
 import { User } from '../users/entities/user.entity';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { UpdateCartQuantityDto } from './dto/update-quantity.dto';
+import { PassportModule } from '@nestjs/passport';
 
 describe('CartController', () => {
   let controller: CartController;
@@ -15,6 +16,7 @@ describe('CartController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
       controllers: [CartController],
       providers: [
         {

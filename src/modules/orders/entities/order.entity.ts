@@ -24,27 +24,26 @@ export class Order {
   id: string;
 
   @Column('float')
-  total: number;
-
-  @Column('float')
   tax: number;
 
-  @Column({
-    type: 'enum',
-    enum: OrderStatus,
-    default: OrderStatus.PENDING,
-  })
+  @ApiProperty({ example: 'PENDING', enum: OrderStatus })
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
   status: OrderStatus;
+
+  @ApiProperty({ example: 1500.5 })
+  @Column('float')
+  total: number;
 
   @ApiProperty({ type: () => Address })
   @ManyToOne(() => Address, { nullable: true, eager: true })
   address: Address;
 
-  @ManyToOne(() => User, (user) => user.id)
-  user: User;
-
+  @ApiProperty({ type: () => OrderItem, isArray: true })
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];
+
+  @ManyToOne(() => User, (user) => user.id)
+  user: User;
 
   @CreateDateColumn()
   createdAt: Date;

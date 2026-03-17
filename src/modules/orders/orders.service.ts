@@ -14,6 +14,15 @@ import { PaymentsService } from '../payments/payments.service';
 import { UpdateOrderStatusDto } from './dto/update-order.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Address } from '../users/entities/address.entity';
+import { QueryRunner } from 'typeorm/browser';
+
+interface CartItemData {
+  productId: string;
+  title: string;
+  price: number;
+  quantity: number;
+  itemTotal: number;
+}
 
 @Injectable()
 export class OrdersService {
@@ -28,7 +37,6 @@ export class OrdersService {
   async create(user: User, createOrderDto: CreateOrderDto) {
     const { addressId } = createOrderDto;
 
-    // 1. Obtener el carrito
     const cart = await this.cartService.getCart(user);
     if (cart.items.length === 0)
       throw new BadRequestException('El carrito está vacío');
@@ -38,54 +46,28 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     try {
-      // 2. Validar que la dirección exista y pertenezca al usuario
-      const address = await queryRunner.manager.findOne(Address, {
-        where: { id: addressId, user: { id: user.id } },
-      });
+      const address = await this.validateAddress(
+        queryRunner,
+        addressId,
+        user.id,
+      );
 
-      if (!address) {
-        throw new NotFoundException('La dirección seleccionada no es válida');
-      }
-
-      // 3. Crear la cabecera de la Orden con la dirección vinculada
       const order = queryRunner.manager.create(Order, {
         total: cart.summary.total,
         tax: cart.summary.tax,
-        user: user,
-        address: address, // <--- Vinculación de dirección
+        user,
+        address,
         status: OrderStatus.PENDING,
       });
-
       const savedOrder = await queryRunner.manager.save(order);
 
-      // 4. Procesar items y stock
-      for (const item of cart.items) {
-        const product = await queryRunner.manager.findOneBy(Product, {
-          id: item.productId,
-        });
+      // Tipado corregido aquí
+      await this.processOrderItems(
+        queryRunner,
+        savedOrder,
+        cart.items as CartItemData[],
+      );
 
-        if (!product || product.stock < item.quantity) {
-          throw new BadRequestException(
-            `Stock insuficiente para el producto: ${item.title}`,
-          );
-        }
-
-        // Descontar stock
-        product.stock -= item.quantity;
-        await queryRunner.manager.save(product);
-
-        // Crear el item de la orden
-        const orderItem = queryRunner.manager.create(OrderItem, {
-          order: savedOrder,
-          product: product,
-          quantity: item.quantity,
-          priceAtPurchase: item.price,
-        });
-
-        await queryRunner.manager.save(orderItem);
-      }
-
-      // 5. Limpiar carrito y generar pago
       await this.cartService.clearCart(user.id);
 
       const paymentPreference = await this.paymentsService.createPreference(
@@ -102,9 +84,51 @@ export class OrdersService {
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();
+      this.logger.error(
+        `Error creando orden: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       throw error;
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  private async validateAddress(
+    queryRunner: QueryRunner,
+    addressId: string,
+    userId: string,
+  ): Promise<Address> {
+    const address = await queryRunner.manager.findOne(Address, {
+      where: { id: addressId, user: { id: userId } },
+    });
+    if (!address) throw new NotFoundException('Dirección no válida');
+    return address;
+  }
+
+  private async processOrderItems(
+    queryRunner: QueryRunner,
+    order: Order,
+    items: CartItemData[],
+  ): Promise<void> {
+    for (const item of items) {
+      const product = await queryRunner.manager.findOneBy(Product, {
+        id: item.productId,
+      });
+
+      if (!product || product.stock < item.quantity) {
+        throw new BadRequestException(`Stock insuficiente: ${item.title}`);
+      }
+
+      product.stock -= item.quantity;
+      await queryRunner.manager.save(product);
+
+      const orderItem = queryRunner.manager.create(OrderItem, {
+        order,
+        product,
+        quantity: item.quantity,
+        priceAtPurchase: item.price,
+      });
+      await queryRunner.manager.save(orderItem);
     }
   }
 
