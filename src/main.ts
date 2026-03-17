@@ -41,7 +41,7 @@ async function bootstrap() {
 
   // UI de Scalar
   app.use(
-    '/reference',
+    '/api/v1/docs',
     apiReference({
       theme: 'deepSpace',
       layout: 'modern',
@@ -54,6 +54,8 @@ async function bootstrap() {
   await app.listen(port);
 
   logger.log(`Servidor corriendo en el puerto ${port}`);
-  logger.log(`Documentación disponible en: http://localhost:${port}/reference`);
+  logger.log(
+    `Documentación disponible en: http://localhost:${port}/api/v1/docs`,
+  );
 }
 bootstrap();

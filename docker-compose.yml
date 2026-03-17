@@ -1,18 +1,70 @@
-version: '3.8'
-
 services:
+  # Servicio de la Base de Datos
   db:
     image: postgres:15-alpine
     container_name: ecommerce-db
     restart: always
     ports:
-      - "${DB_PORT}:5432"
+      - '${DB_PORT:-5432}:5432'
     environment:
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ecommerce-network
+
+  # Servicio del Backend (App NestJS)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecommerce-backend
+    restart: always
+    ports:
+      - '${PORT:-3000}:${PORT:-3000}'
+    environment:
+      # Database Internal (Docker Network)
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      STATE: ${STATE}
+
+      # App Config
+      PORT: ${PORT:-3000}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+
+      # Mercadopago
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN}
+      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY}
+
+      # Cloudinary
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+
+      # Mailtrap
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USER: ${MAIL_USER}
+      MAIL_PASS: ${MAIL_PASS}
+      MAIL_FROM: ${MAIL_FROM}
+
+      # Webhooks & External
+      BASE_URL_WEBHOOK: ${BASE_URL_WEBHOOK}
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+    depends_on:
+      - db
+    networks:
+      - ecommerce-network
 
 volumes:
   postgres_data:
+
+networks:
+  ecommerce-network:
+    driver: bridge
