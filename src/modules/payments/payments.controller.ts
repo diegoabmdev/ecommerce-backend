@@ -6,20 +6,15 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiQuery,
-  ApiBody,
-  ApiResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 
 import { ApiServerErrors } from '../../common/decorators/swagger-errors.decorator';
+import { ApiBaseResponse } from '../../common/decorators/api-res-generic.decorator';
 import {
   MercadoPagoWebhookDto,
   PaymentWebhookResponseDto,
-} from 'src/common/responses/payment-responses.dto';
+} from '../../common/responses/payment-responses.dto';
 
 @ApiTags('Payments')
 @ApiServerErrors()
@@ -32,26 +27,18 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Webhook de Mercado Pago',
     description:
-      'Recibe notificaciones automáticas de pagos aprobados. Actualiza el estado de la orden a PAID.',
+      'Recibe notificaciones automáticas de pagos para actualizar el estado de las órdenes.',
   })
   @ApiQuery({ name: 'topic', required: false, example: 'payment' })
-  @ApiBody({ type: MercadoPagoWebhookDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Notificación procesada',
-    type: PaymentWebhookResponseDto,
-  })
+  @ApiBaseResponse(
+    PaymentWebhookResponseDto,
+    'Notificación procesada correctamente',
+    HttpStatus.OK,
+  )
   async handleWebhook(
     @Query('topic') topic: string | undefined,
     @Body() body: MercadoPagoWebhookDto,
   ) {
-    if (topic === 'payment' || body.type === 'payment') {
-      const paymentId = body.data?.id || body.resource?.split('/').pop();
-
-      if (paymentId) {
-        return await this.paymentsService.verifyPayment(paymentId);
-      }
-    }
-    return { received: true };
+    return await this.paymentsService.processWebhook(topic, body);
   }
 }

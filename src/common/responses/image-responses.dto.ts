@@ -9,8 +9,3 @@ export class MultipleImageDataDto {
   @ApiProperty({ example: ['https://url1.jpg', 'https://url2.jpg'] })
   images: string[];
 }
-
-export class MessageDataDto {
-  @ApiProperty({ example: 'Accion realizada correctamente' })
-  message: string;
-}
