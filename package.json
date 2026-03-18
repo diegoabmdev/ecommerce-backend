@@ -22,7 +22,11 @@
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
     "docker:clean": "docker-compose down -v",
-    "docker:test": "docker exec -it ecommerce-backend npm run test"
+    "docker:test": "docker exec -it ecommerce-backend npm run test",
+    "typeorm": "typeorm-ts-node-commonjs",
+    "migration:generate": "npm run typeorm -- migration:generate -d src/typeorm.config.ts",
+    "migration:run": "npm run typeorm -- migration:run -d src/typeorm.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d src/typeorm.config.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
