@@ -15,16 +15,14 @@ export interface StandardResponse<T> {
 }
 
 @Injectable()
-export class ResponseInterceptor<T> implements NestInterceptor<
-  T,
-  StandardResponse<T>
-> {
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<StandardResponse<T>> {
+export class ResponseInterceptor<T> implements NestInterceptor<T, any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
       map((data) => {
+        if (typeof data === 'string' && data.includes('<!DOCTYPE html>')) {
+          return data;
+        }
+
         const isObject = data !== null && typeof data === 'object';
         const hasDataField = isObject && 'data' in data;
 

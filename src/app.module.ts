@@ -10,6 +10,8 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { FilesModule } from './modules/files/files.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -54,5 +56,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 
     ReviewsModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

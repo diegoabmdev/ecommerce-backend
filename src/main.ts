@@ -11,8 +11,16 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
+  app.enableCors({
+    origin: ['http://localhost:3000', 'https://tu-frontend-en-vercel.com'],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+
   // Prefijo global para la API
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['/'],
+  });
 
   // Filtro global de excepciones
   app.useGlobalFilters(new AllExceptionsFilter());
@@ -33,6 +41,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('E-commerce API')
     .setDescription('Documentación de la tienda - Portafolio Diego Abanto')
+    .addServer('https://diegoabmdev-ecommerce.onrender.com')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
