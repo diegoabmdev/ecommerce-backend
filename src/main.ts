@@ -12,7 +12,11 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: ['http://localhost:3000', 'https://tu-frontend-en-vercel.com'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://diegoabmdev-ecommerce-frontend.vercel.app',
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
@@ -41,7 +45,11 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('E-commerce API')
     .setDescription('Documentación de la tienda - Portafolio Diego Abanto')
-    .addServer('https://diegoabmdev-ecommerce.onrender.com')
+    .addServer(
+      'https://diegoabmdev-ecommerce.onrender.com',
+      'Servidor de Producción',
+    )
+    .addServer('http://localhost:3000', 'Servidor Local')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

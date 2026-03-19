@@ -63,6 +63,7 @@ export class PaymentsService {
           back_urls: {
             success: `${frontendUrl}/checkout/success`,
             failure: `${frontendUrl}/checkout/failure`,
+            pending: `${frontendUrl}/checkout/pending`,
           },
           auto_return: 'approved',
           external_reference: orderId,

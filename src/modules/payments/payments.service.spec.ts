@@ -42,8 +42,9 @@ describe('PaymentsService', () => {
             getOrThrow: jest.fn().mockReturnValue('mock-token'),
             get: jest.fn((key: string) => {
               const config: Record<string, string> = {
-                BASE_URL_WEBHOOK: 'https://api.test.com',
-                FRONTEND_URL: 'https://store.test.com',
+                BASE_URL_WEBHOOK: 'https://diegoabmdev-ecommerce.onrender.com',
+                FRONTEND_URL:
+                  'https://diegoabmdev-ecommerce-frontend.vercel.app',
                 N8N_WEBHOOK_URL: 'https://n8n.test.com',
               };
               return config[key];
