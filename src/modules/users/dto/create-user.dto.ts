@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsArray,
   ValidateNested,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateAddressDto } from './create-address.dto';
@@ -20,13 +21,27 @@ export class CreateUserDto {
   email: string;
 
   @ApiProperty({
-    example: 'Password123!',
-    minLength: 6,
-    description: 'Contraseña segura, mínimo 6 caracteres',
+    example: 'Ab123456!',
+    description:
+      'Mínimo 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial',
   })
   @IsString()
-  @MinLength(6)
+  @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
+  @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
+    message:
+      'La contraseña es demasiado débil (debe incluir mayúscula, minúscula, número y carácter especial)',
+  })
   password: string;
+
+  @ApiProperty({ example: 'Diego Abanto' })
+  @IsString()
+  @MinLength(3)
+  fullName: string;
+
+  @ApiProperty({ example: 'diego_dev', required: false })
+  @IsOptional()
+  @IsString()
+  username?: string;
 
   @ApiProperty({
     type: [CreateAddressDto],

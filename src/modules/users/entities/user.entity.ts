@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { Address } from './address.entity';
 import { ApiProperty } from '@nestjs/swagger';
-import { Wishlist } from 'src/modules/wishlist/entities/wishlist.entity';
+import { Wishlist } from '../../wishlist/entities/wishlist.entity';
 
 @Entity('users')
 export class User {
@@ -28,6 +28,18 @@ export class User {
 
   @Column({ select: false })
   password: string;
+
+  @ApiProperty({ example: 'diego_dev', description: 'Nombre de usuario único' })
+  @Column({ unique: true, nullable: true })
+  username: string;
+
+  @ApiProperty({ example: 'male', enum: ['male', 'female', 'other'] })
+  @Column({ type: 'text', nullable: true })
+  gender: string;
+
+  @ApiProperty({ example: '1995-10-25', description: 'Fecha de nacimiento' })
+  @Column({ type: 'date', nullable: true })
+  birthDate: Date;
 
   @ApiProperty({
     example: 'Diego Abanto',
@@ -71,6 +83,9 @@ export class User {
   })
   @Column({ default: true })
   isActive: boolean;
+
+  @ApiProperty({ example: 5, description: 'Cantidad de pedidos realizados' })
+  ordersCount?: number;
 
   @ApiProperty({
     type: () => [Address],

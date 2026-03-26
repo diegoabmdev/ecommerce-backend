@@ -119,7 +119,6 @@ export class ProductsService {
       order: { createdAt: 'DESC' },
     });
 
-    // --- Lógica de isFavorite ---
     let favoriteProductIds: string[] = [];
 
     if (userId) {
@@ -135,7 +134,6 @@ export class ProductsService {
       ...product,
       isFavorite: favoriteProductIds.includes(product.id),
     }));
-    // ----------------------------
 
     return {
       data: productsWithFavorite,

@@ -17,7 +17,7 @@ import * as crypto from 'crypto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { MailService } from '../mail/mail.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { OrderType, PaginationDto } from '../../common/dtos/pagination.dto';
 
 interface AuthMessageResponse {
   message: string;
@@ -56,20 +56,41 @@ export class UsersService {
   }
 
   async findAll(paginationDto: PaginationDto) {
-    const { limit = 10, offset = 0, search } = paginationDto;
+    const {
+      limit = 10,
+      offset = 0,
+      search,
+      sortBy = 'createdAt',
+      order = OrderType.DESC,
+      gender,
+      role,
+    } = paginationDto;
 
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
-      .leftJoinAndSelect('user.addresses', 'addresses');
+      .leftJoinAndSelect('user.addresses', 'addresses')
+      .leftJoin('user.orders', 'orders')
+      .loadRelationCountAndMap('user.ordersCount', 'user.orders');
 
     if (search) {
-      queryBuilder.where(
-        'user.fullName ILIKE :search OR user.email ILIKE :search',
-        {
-          search: `%${search}%`,
-        },
+      queryBuilder.andWhere(
+        '(user.fullName ILIKE :search OR user.email ILIKE :search OR user.username ILIKE :search)',
+        { search: `%${search}%` },
       );
     }
+
+    if (gender) {
+      queryBuilder.andWhere('user.gender = :gender', { gender });
+    }
+
+    if (role) {
+      queryBuilder.andWhere('user.role = :role', { role });
+    }
+
+    const validSortFields = ['createdAt', 'fullName', 'email', 'username'];
+    const finalSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+
+    queryBuilder.orderBy(`user.${finalSortBy}`, order);
 
     const [users, total] = await queryBuilder
       .take(limit)
@@ -77,15 +98,19 @@ export class UsersService {
       .getManyAndCount();
 
     return {
-      data: users,
-      meta: {
-        total,
-        page: Math.floor(offset / limit) + 1,
-        lastPage: Math.ceil(total / limit),
-        limit,
-        offset,
-      },
+      users,
+      total,
+      skip: offset,
+      limit,
+      page: Math.floor(offset / limit) + 1,
+      lastPage: Math.ceil(total / limit),
     };
+  }
+
+  async remove(id: string) {
+    const user = await this.findOne(id);
+    await this.userRepository.remove(user);
+    return { message: 'Usuario eliminado correctamente' };
   }
 
   async findOne(id: string) {
