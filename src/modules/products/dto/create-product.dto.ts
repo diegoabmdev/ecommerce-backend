@@ -11,123 +11,120 @@ import {
   MinLength,
   IsObject,
   IsUUID,
+  Max,
 } from 'class-validator';
 
 export class CreateProductDto {
-  @ApiProperty({
-    example: 'Teclado Mecánico RGB',
-    description: 'Nombre del producto',
-    minLength: 3,
-  })
+  @ApiProperty({ example: 'Teclado Mecánico RGB', minLength: 3 })
   @IsString()
-  @MinLength(3, { message: 'El título debe tener al menos 3 caracteres' })
+  @MinLength(3)
   title: string;
 
-  @ApiProperty({
-    example: 85.5,
-    description: 'Precio de venta',
-    minimum: 1,
-  })
+  @ApiProperty({ example: 85.5, description: 'Precio base' })
   @IsNumber()
-  @IsPositive({ message: 'El precio debe ser un número positivo' })
+  @IsPositive()
   price: number;
 
   @ApiProperty({
-    example: 'Teclado con switches red y retroiluminación personalizable.',
-    description: 'Descripción detallada del producto',
+    example: 10.5,
+    description: 'Porcentaje de descuento',
     required: false,
   })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  discountPercentage?: number;
+
+  @ApiProperty({ example: 'Descripción del producto', required: false })
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiProperty({
-    example: 'teclado-mecanico-rgb',
-    description: 'URL amigable. Se autogenera si se deja vacío.',
-    required: false,
-  })
+  @ApiProperty({ example: 'teclado-mecanico-rgb', required: false })
   @IsString()
   @IsOptional()
   slug?: string;
 
-  @ApiProperty({
-    example: 100,
-    description: 'Cantidad inicial en stock',
-    required: false,
-    default: 0,
-  })
+  @ApiProperty({ example: 'Logitech', required: false })
+  @IsString()
+  @IsOptional()
+  brand?: string;
+
+  @ApiProperty({ example: 'LOGI-99-X', required: false })
+  @IsString()
+  @IsOptional()
+  sku?: string;
+
+  @ApiProperty({ example: 100, required: false, default: 0 })
   @IsInt()
-  @Min(0, { message: 'El stock no puede ser menor a 0' })
+  @Min(0)
   @IsOptional()
   stock?: number;
 
-  @ApiProperty({
-    example: { switch: 'Red', layout: 'ISO', hotswap: true },
-    description: 'Especificaciones técnicas en formato JSON',
-    required: false,
-  })
+  @ApiProperty({ example: 'In Stock', required: false })
+  @IsString()
+  @IsOptional()
+  availabilityStatus?: string;
+
+  @ApiProperty({ example: { switch: 'Red' }, required: false })
   @IsObject()
   @IsOptional()
   specifications?: Record<string, string | number>;
 
-  @ApiProperty({
-    example: [
-      'https://link-a-imagen.com/1.jpg',
-      'https://link-a-imagen.com/2.jpg',
-    ],
-    description: 'Lista de URLs de imágenes (normalmente se maneja vía upload)',
-    required: false,
-  })
+  @ApiProperty({ example: ['https://link.com/1.jpg'], required: false })
   @IsString({ each: true })
   @IsArray()
   @IsOptional()
   images?: string[];
 
-  @ApiProperty({
-    example: 1.2,
-    description: 'Peso del producto en kilogramos (kg)',
-    required: false,
-  })
+  @ApiProperty({ example: 1.2, required: false })
   @IsNumber()
-  @Min(0, { message: 'El peso no puede ser negativo' })
+  @Min(0)
   @IsOptional()
   weight?: number;
 
   @ApiProperty({
     example: { width: 45, height: 15, depth: 4 },
-    description: 'Dimensiones del producto (Ancho, Alto, Profundidad)',
     required: false,
   })
   @IsObject()
   @IsOptional()
   dimensions?: { width: number; height: number; depth: number };
 
-  @ApiProperty({
-    example: true,
-    description: 'Estado de visibilidad del producto',
-    default: true,
-    required: false,
-  })
+  @ApiProperty({ example: '2 years warranty', required: false })
+  @IsString()
+  @IsOptional()
+  warrantyInformation?: string;
+
+  @ApiProperty({ example: 'Ships in 24h', required: false })
+  @IsString()
+  @IsOptional()
+  shippingInformation?: string;
+
+  @ApiProperty({ example: '30 days return policy', required: false })
+  @IsString()
+  @IsOptional()
+  returnPolicy?: string;
+
+  @ApiProperty({ example: 1, required: false })
+  @IsInt()
+  @IsPositive()
+  @IsOptional()
+  minimumOrderQuantity?: number;
+
+  @ApiProperty({ example: true, required: false })
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
 
-  @ApiProperty({
-    example: ['gaming', 'setup', 'pc'],
-    description: 'Etiquetas para búsqueda y filtrado',
-    required: false,
-    isArray: true,
-  })
+  @ApiProperty({ example: ['gaming', 'setup'], isArray: true, required: false })
   @IsString({ each: true })
   @IsArray()
   @IsOptional()
   tags?: string[];
 
-  @ApiProperty({
-    example: '550e8400-e29b-41d4-a716-446655440000',
-    description: 'UUID de la categoría relacionada',
-    required: false,
-  })
+  @ApiProperty({ example: 'UUID-DE-CATEGORIA', required: false })
   @IsUUID()
   @IsOptional()
   categoryId?: string;

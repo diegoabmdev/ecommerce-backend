@@ -1,4 +1,11 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Product } from '../../products/entities/product.entity';
 
@@ -28,6 +35,10 @@ export class Category {
   @Column('text', { nullable: true })
   description: string;
 
+  @ApiProperty({ example: 'Mesas' })
+  @Column('text', { unique: true })
+  slug: string;
+
   @OneToMany(() => Product, (product) => product.category)
   products: Product[];
 
@@ -37,4 +48,17 @@ export class Category {
     required: false,
   })
   productsCount?: number;
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  checkSlug() {
+    if (!this.slug) {
+      this.slug = this.name;
+    }
+    this.slug = this.slug
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '_')
+      .replace(/[^\w-]+/g, '');
+  }
 }

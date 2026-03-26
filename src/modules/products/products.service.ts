@@ -63,7 +63,7 @@ export class ProductsService {
   private handleDBExceptions(error: unknown): never {
     const dbError = error as DBError;
 
-    if (dbError.code === '23505') {
+    if (dbError && dbError.code === '23505') {
       throw new BadRequestException(dbError.detail);
     }
 
@@ -95,6 +95,10 @@ export class ProductsService {
     }
   }
 
+  async getCategoryList() {
+    return await this.categoriesService.getFlatList();
+  }
+
   async findAll(paginationDto: PaginationDto) {
     const { limit = 10, offset = 0, search, categoryId } = paginationDto;
     const whereOptions: FindOptionsWhere<Product> = { isActive: true };
@@ -116,15 +120,59 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: string): Promise<Product> {
-    const product = await this.productRepository.findOne({
-      where: { id },
+  async findOne(term: string): Promise<Product> {
+    const isUUID =
+      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+        term,
+      );
+
+    const product = isUUID
+      ? await this.productRepository.findOne({
+          where: { id: term },
+          relations: ['category'],
+        })
+      : await this.productRepository.findOne({
+          where: { slug: term.toLowerCase().trim() },
+          relations: ['category'],
+        });
+
+    if (!product)
+      throw new NotFoundException(`Producto con término ${term} no encontrado`);
+
+    return product;
+  }
+
+  async search(q: string, paginationDto: PaginationDto) {
+    const { limit = 10, offset = 0 } = paginationDto;
+
+    const [products, total] = await this.productRepository.findAndCount({
+      where: [
+        { title: ILike(`%${q}%`), isActive: true },
+        { description: ILike(`%${q}%`), isActive: true },
+        { brand: ILike(`%${q}%`), isActive: true },
+      ],
+      take: limit,
+      skip: offset,
       relations: ['category'],
     });
 
-    if (!product)
-      throw new NotFoundException(`Producto con id ${id} no encontrado`);
-    return product;
+    return { products, total, limit, skip: offset };
+  }
+
+  async findByCategorySlug(slug: string, paginationDto: PaginationDto) {
+    const { limit = 10, offset = 0 } = paginationDto;
+
+    const [products, total] = await this.productRepository.findAndCount({
+      where: {
+        category: { slug: slug.toLowerCase() },
+        isActive: true,
+      },
+      take: limit,
+      skip: offset,
+      relations: ['category'],
+    });
+
+    return { products, total, limit, skip: offset };
   }
 
   async update(
@@ -159,9 +207,10 @@ export class ProductsService {
         this.filesService.deleteImage(img),
       );
       await Promise.all(deletePromises).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : 'Unknown';
+        const errorMessage =
+          err instanceof Error ? err.message : 'Error desconocido';
         this.logger.error(
-          `Error limpiando Cloudinary al borrar producto: ${msg}`,
+          `Error limpiando Cloudinary al borrar producto: ${errorMessage}`,
         );
       });
     }

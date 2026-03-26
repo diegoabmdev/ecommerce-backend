@@ -1,6 +1,6 @@
 // src/categories/dto/create-category.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MinLength } from 'class-validator';
+import { IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateCategoryDto {
   @ApiProperty({
@@ -19,4 +19,9 @@ export class CreateCategoryDto {
   })
   @IsString()
   description?: string;
+
+  @ApiProperty({ example: 'teclado-mecanico-rgb', required: false })
+  @IsString()
+  @IsOptional()
+  slug?: string;
 }

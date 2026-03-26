@@ -98,13 +98,42 @@ export class ProductsController {
     return { imageUrl: result.secure_url };
   }
 
-  @Get(':id')
+  @Get('search')
+  @ApiOperation({ summary: 'Busca productos por título, descripción o marca' })
+  search(@Query('q') q: string, @Query() paginationDto: PaginationDto) {
+    if (!q)
+      throw new BadRequestException(
+        'El parámetro de búsqueda "q" es requerido',
+      );
+    return this.productsService.search(q, paginationDto);
+  }
+
+  @Get('category-list')
+  @ApiOperation({
+    summary: 'Obtiene una lista simple de los slugs de las categorías',
+  })
+  getCategoryList() {
+    return this.productsService.getCategoryList();
+  }
+
+  @Get('category/:slug')
+  @ApiOperation({
+    summary: 'Obtiene productos filtrados por el slug de la categoría',
+  })
+  findByCategory(
+    @Param('slug') slug: string,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.productsService.findByCategorySlug(slug, paginationDto);
+  }
+
+  @Get(':term')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Obtener producto por ID' })
+  @ApiOperation({ summary: 'Obtener producto por ID o slug' })
   @ApiBaseResponse(Product, 'Producto encontrado', HttpStatus.OK)
   @ApiIdResponse()
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.productsService.findOne(id);
+  findOne(@Param('term') term: string) {
+    return this.productsService.findOne(term);
   }
 
   @Post(':id/upload-multiple')
