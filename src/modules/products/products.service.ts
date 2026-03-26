@@ -12,6 +12,7 @@ import { Product } from './entities/product.entity';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { FilesService } from '../files/files.service';
 import { CategoriesService } from '../categories/categories.service';
+import { Wishlist } from '../wishlist/entities/wishlist.entity';
 
 interface DBError {
   code: string;
@@ -25,6 +26,10 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+
+    @InjectRepository(Wishlist)
+    private readonly wishlistRepository: Repository<Wishlist>,
+
     private readonly filesService: FilesService,
     private readonly categoriesService: CategoriesService,
   ) {}
@@ -99,14 +104,14 @@ export class ProductsService {
     return await this.categoriesService.getFlatList();
   }
 
-  async findAll(paginationDto: PaginationDto) {
+  async findAll(paginationDto: PaginationDto, userId?: string) {
     const { limit = 10, offset = 0, search, categoryId } = paginationDto;
     const whereOptions: FindOptionsWhere<Product> = { isActive: true };
 
     if (search) whereOptions.title = ILike(`%${search}%`);
     if (categoryId) whereOptions.category = { id: categoryId };
 
-    const [data, total] = await this.productRepository.findAndCount({
+    const [products, total] = await this.productRepository.findAndCount({
       take: limit,
       skip: offset,
       where: whereOptions,
@@ -114,8 +119,26 @@ export class ProductsService {
       order: { createdAt: 'DESC' },
     });
 
+    // --- Lógica de isFavorite ---
+    let favoriteProductIds: string[] = [];
+
+    if (userId) {
+      const favorites = await this.wishlistRepository.find({
+        where: { user: { id: userId } },
+        select: ['product'],
+        relations: ['product'],
+      });
+      favoriteProductIds = favorites.map((fav) => fav.product.id);
+    }
+
+    const productsWithFavorite = products.map((product) => ({
+      ...product,
+      isFavorite: favoriteProductIds.includes(product.id),
+    }));
+    // ----------------------------
+
     return {
-      data,
+      data: productsWithFavorite,
       meta: { total, limit, offset, totalPages: Math.ceil(total / limit) },
     };
   }

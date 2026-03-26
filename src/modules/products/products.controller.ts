@@ -46,6 +46,8 @@ import {
   MultipleImageDataDto,
 } from '../../common/responses/image-responses.dto';
 import { BaseResponseDto } from '../../common/responses/base-response.dto';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User } from '../users/entities/user.entity';
 
 @ApiTags('Products')
 @ApiServerErrors()
@@ -70,8 +72,8 @@ export class ProductsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listado paginado de productos' })
   @ApiBaseResponse(Product, 'Listado obtenido', HttpStatus.OK, true)
-  findAll(@Query() paginationDto: PaginationDto) {
-    return this.productsService.findAll(paginationDto);
+  findAll(@Query() paginationDto: PaginationDto, @GetUser() user?: User) {
+    return this.productsService.findAll(paginationDto, user?.id);
   }
 
   @Post('upload-temp')

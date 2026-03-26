@@ -6,10 +6,11 @@ import { Product } from './entities/product.entity';
 import { AuthModule } from '../auth/auth.module';
 import { FilesModule } from '../files/files.module';
 import { CategoriesModule } from '../categories/categories.module';
+import { Wishlist } from '../wishlist/entities/wishlist.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Product]),
+    TypeOrmModule.forFeature([Product, Wishlist]),
     AuthModule,
     FilesModule,
     CategoriesModule,

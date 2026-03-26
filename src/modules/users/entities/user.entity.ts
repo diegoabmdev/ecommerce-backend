@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Address } from './address.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { Wishlist } from 'src/modules/wishlist/entities/wishlist.entity';
 
 @Entity('users')
 export class User {
@@ -85,4 +86,11 @@ export class User {
   @ApiProperty({ example: '2026-03-15T17:00:00.000Z' })
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @ApiProperty({
+    type: () => [Wishlist],
+    description: 'Productos en la lista de deseos del usuario',
+  })
+  @OneToMany(() => Wishlist, (wishlist) => wishlist.user)
+  wishlist: Wishlist[];
 }
