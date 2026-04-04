@@ -9,6 +9,7 @@ import {
   Query,
   HttpStatus,
   HttpCode,
+  Delete,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
@@ -27,12 +28,16 @@ import { ValidRoles } from '../auth/interfaces/valid-roles';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { CartService } from '../cart/cart.service';
 
 @ApiTags('Users')
 @ApiServerErrors()
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly cartService: CartService,
+  ) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -50,20 +55,12 @@ export class UsersController {
   @Get()
   @HttpCode(HttpStatus.OK)
   @Auth(ValidRoles.admin)
-  @ApiOperation({ summary: 'Listar todos los usuarios (Admin)' })
+  @ApiOperation({
+    summary: 'Obtener todos los usuarios con filtros, búsqueda y orden',
+  })
   @ApiBaseResponse(User, 'Lista de usuarios obtenida', HttpStatus.OK, true)
   findAll(@Query() paginationDto: PaginationDto) {
     return this.usersService.findAll(paginationDto);
-  }
-
-  @Get(':id')
-  @HttpCode(HttpStatus.OK)
-  @Auth()
-  @ApiOperation({ summary: 'Obtener usuario por ID' })
-  @ApiBaseResponse(User, 'Usuario encontrado', HttpStatus.OK, false)
-  @ApiIdResponse()
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.findOne(id);
   }
 
   @Patch('me')
@@ -85,6 +82,16 @@ export class UsersController {
     return this.usersService.update(user.id, updateUserDto);
   }
 
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  @Auth()
+  @ApiOperation({ summary: 'Obtener usuario por ID' })
+  @ApiBaseResponse(User, 'Usuario encontrado', HttpStatus.OK, false)
+  @ApiIdResponse()
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.findOne(id);
+  }
+
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
   @Auth(ValidRoles.admin)
@@ -101,5 +108,29 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.update(id, updateUserDto);
+  }
+
+  @Delete(':id')
+  @Auth(ValidRoles.admin)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar un usuario (Admin)' })
+  @ApiBaseResponse(
+    User,
+    'Usuario eliminado por el administrador',
+    HttpStatus.OK,
+    false,
+  )
+  @ApiIdResponse()
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.remove(id);
+  }
+
+  @Get(':id/carts')
+  @Auth(ValidRoles.admin)
+  @ApiOperation({
+    summary: 'Obtener el carrito de un usuario específico por su ID',
+  })
+  getUserCarts(@Param('id', ParseUUIDPipe) id: string) {
+    return this.cartService.findCartsByUserId(id);
   }
 }

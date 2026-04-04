@@ -153,4 +153,29 @@ export class CartService {
       },
     };
   }
+
+  async findCartsByUserId(userId: string) {
+    const items = await this.cartRepository.find({
+      where: { user: { id: userId } },
+      relations: ['product'],
+    });
+
+    if (items.length === 0) return { carts: [], total: 0 };
+
+    const summary = this.calculateCartTotals(items);
+
+    return {
+      carts: [
+        {
+          id: userId,
+          products: summary.items,
+          total: summary.summary.total,
+          userId: userId,
+          totalProducts: items.length,
+          totalQuantity: summary.summary.totalItems,
+        },
+      ],
+      total: 1,
+    };
+  }
 }

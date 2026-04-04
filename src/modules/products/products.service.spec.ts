@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,10 +11,12 @@ import { CategoriesService } from '../categories/categories.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { Category } from '../categories/entities/category.entity';
 import { UploadApiResponse } from 'cloudinary';
+import { Wishlist } from '../wishlist/entities/wishlist.entity';
 
 describe('ProductsService', () => {
   let service: ProductsService;
   let productRepository: jest.Mocked<Repository<Product>>;
+  let wishlistRepository: jest.Mocked<Repository<Wishlist>>;
   let filesService: jest.Mocked<FilesService>;
   let categoriesService: jest.Mocked<CategoriesService>;
 
@@ -44,6 +45,12 @@ describe('ProductsService', () => {
           },
         },
         {
+          provide: getRepositoryToken(Wishlist),
+          useValue: {
+            find: jest.fn(),
+          },
+        },
+        {
           provide: FilesService,
           useValue: {
             uploadImage: jest.fn(),
@@ -54,6 +61,7 @@ describe('ProductsService', () => {
           provide: CategoriesService,
           useValue: {
             findOneInternal: jest.fn(),
+            getFlatList: jest.fn(),
           },
         },
       ],
@@ -61,6 +69,7 @@ describe('ProductsService', () => {
 
     service = module.get<ProductsService>(ProductsService);
     productRepository = module.get(getRepositoryToken(Product));
+    wishlistRepository = module.get(getRepositoryToken(Wishlist));
     filesService = module.get(FilesService);
     categoriesService = module.get(CategoriesService);
   });
@@ -106,8 +115,46 @@ describe('ProductsService', () => {
 
       const result = await service.findAll({ limit: 10, offset: 0 });
 
-      expect(result.data).toEqual(products);
+      const expectedData = products.map((p) => ({
+        ...p,
+        isFavorite: false,
+      }));
+
+      expect(result.data).toEqual(expectedData);
       expect(result.meta.total).toBe(1);
+    });
+
+    it('debería retornar productos paginados y marcar favoritos si hay userId', async () => {
+      const products = [mockProduct];
+      productRepository.findAndCount.mockResolvedValue([products, 1]);
+
+      wishlistRepository.find.mockResolvedValue([
+        { product: { id: 'uuid-123' } },
+      ] as Wishlist[]);
+
+      const result = await service.findAll(
+        { limit: 10, offset: 0 },
+        'user-123',
+      );
+
+      expect(result.data[0]).toHaveProperty('isFavorite', true);
+      expect(result.meta.total).toBe(1);
+      expect(wishlistRepository.find).toHaveBeenCalled();
+    });
+
+    it('debería filtrar por categoryId si se proporciona en el DTO', async () => {
+      productRepository.findAndCount.mockResolvedValue([[mockProduct], 1]);
+
+      await service.findAll({ limit: 10, offset: 0, categoryId: 'cat-123' });
+
+      expect(productRepository.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          where: expect.objectContaining({
+            category: { id: 'cat-123' },
+          } as any),
+        }),
+      );
     });
   });
 
@@ -190,15 +237,13 @@ describe('ProductsService', () => {
   });
 
   describe('handleDBExceptions', () => {
-    it('debería manejar errores de duplicidad (23505)', () => {
-      const error = { code: '23505', detail: 'Duplicate key' };
+    it('debería lanzar BadRequestException con el detalle del error', () => {
+      const error = { code: '23505', detail: 'Key already exists' };
 
-      try {
-        service['handleDBExceptions'](error as any);
-      } catch (e: any) {
-        expect(e).toBeInstanceOf(BadRequestException);
-        expect(e.message).toBe('Duplicate key');
-      }
+      expect(() => {
+        // @ts-expect-error: ddd
+        service.handleDBExceptions(error);
+      }).toThrow(BadRequestException);
     });
   });
 });

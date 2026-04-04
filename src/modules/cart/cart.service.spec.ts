@@ -2,7 +2,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { CartItem } from './entities/cart.entity';
 import { ProductsService } from '../products/products.service';
@@ -81,7 +81,7 @@ describe('CartService', () => {
     });
 
     it('debería lanzar BadRequestException si no hay stock suficiente', async () => {
-      productsService.findOne.mockResolvedValue(mockProduct); // stock: 5
+      productsService.findOne.mockResolvedValue(mockProduct);
 
       await expect(
         service.addToCart({ productId: 'prod-uuid', quantity: 10 }, mockUser),
@@ -159,6 +159,70 @@ describe('CartService', () => {
 
       expect(result).toEqual({ message: 'Producto eliminado del carrito' });
       expect(cartRepository.remove).toHaveBeenCalled();
+    });
+  });
+
+  describe('findCartsByUserId (Admin Panel)', () => {
+    const adminTargetUserId = 'external-user-uuid';
+
+    it('debería retornar un formato compatible con el panel de administración', async () => {
+      const mockCartItems = [
+        {
+          product: { ...mockProduct, price: 1000, title: 'Laptop' },
+          quantity: 1,
+        },
+      ] as CartItem[];
+
+      cartRepository.find.mockResolvedValue(mockCartItems);
+
+      const result = await service.findCartsByUserId(adminTargetUserId);
+
+      expect(result).toHaveProperty('carts');
+      expect(result.total).toBe(1);
+      expect(result.carts[0].userId).toBe(adminTargetUserId);
+      expect(result.carts[0].products).toHaveLength(1);
+
+      expect(result.carts[0].total).toBe(1190);
+      expect(result.carts[0].totalQuantity).toBe(1);
+    });
+
+    it('debería retornar un array de carts vacío si el usuario no tiene productos', async () => {
+      cartRepository.find.mockResolvedValue([]);
+
+      const result = await service.findCartsByUserId(adminTargetUserId);
+
+      expect(result.carts).toEqual([]);
+      expect(result.total).toBe(0);
+    });
+  });
+
+  describe('clearCart', () => {
+    it('debería llamar al método delete del repositorio con el userId correcto', async () => {
+      const userId = 'user-to-clear';
+      await service.clearCart(userId);
+
+      expect(cartRepository.delete).toHaveBeenCalledWith({
+        user: { id: userId },
+      });
+    });
+  });
+
+  describe('removeProductFromCart', () => {
+    it('debería lanzar NotFoundException si el producto no está en el carrito', async () => {
+      cartRepository.findOneBy.mockResolvedValue(null);
+
+      await expect(
+        service.removeProductFromCart('non-existent', mockUser),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('debería eliminar el producto si existe', async () => {
+      const itemToRemove = { id: 'item-1' } as CartItem;
+      cartRepository.findOneBy.mockResolvedValue(itemToRemove);
+
+      await service.removeProductFromCart('prod-uuid', mockUser);
+
+      expect(cartRepository.remove).toHaveBeenCalledWith(itemToRemove);
     });
   });
 });

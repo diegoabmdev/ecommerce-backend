@@ -13,6 +13,8 @@ import { Auth } from '../../common/decorators/auth.decorator';
 import { ResetPasswordDto } from '../users/dto/reset-password.dto';
 import { ForgotPasswordDto } from '../users/dto/forgot-password.dto';
 import { BaseResponseDto } from 'src/common/responses/base-response.dto';
+import { GetUser } from './decorators/get-user.decorator';
+import { User } from '../users/entities/user.entity';
 
 interface AuthMessageResponse {
   message: string;
@@ -48,8 +50,8 @@ export class AuthController {
   @Auth()
   @ApiOperation({ summary: 'Verificar estado del token' })
   @ApiBaseResponse(LoginResponseDataDto, 'Token renovado/válido', HttpStatus.OK)
-  checkAuthStatus(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  checkAuthStatus(@GetUser() user: User) {
+    return this.authService.checkStatus(user);
   }
 
   @Post('forgot-password')

@@ -14,6 +14,7 @@ import {
   ParseUUIDPipe,
   HttpStatus,
   HttpCode,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -46,6 +47,9 @@ import {
   MultipleImageDataDto,
 } from '../../common/responses/image-responses.dto';
 import { BaseResponseDto } from '../../common/responses/base-response.dto';
+import { User } from '../users/entities/user.entity';
+import { GetUserOptional } from '../auth/decorators/get-user-optional.decorator';
+import { JwtOptionalGuard } from '../auth/guards/jwt-optional.guard';
 
 @ApiTags('Products')
 @ApiServerErrors()
@@ -67,11 +71,16 @@ export class ProductsController {
   }
 
   @Get()
+  @UseGuards(JwtOptionalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listado paginado de productos' })
   @ApiBaseResponse(Product, 'Listado obtenido', HttpStatus.OK, true)
-  findAll(@Query() paginationDto: PaginationDto) {
-    return this.productsService.findAll(paginationDto);
+  findAll(
+    @Query() paginationDto: PaginationDto,
+    @GetUserOptional() user?: User,
+  ) {
+    console.log('Usuario detectado en ruta pública:', user?.email);
+    return this.productsService.findAll(paginationDto, user?.id);
   }
 
   @Post('upload-temp')
@@ -98,13 +107,34 @@ export class ProductsController {
     return { imageUrl: result.secure_url };
   }
 
-  @Get(':id')
+  @Get('search')
+  @ApiOperation({ summary: 'Busca productos por título, descripción o marca' })
+  search(@Query('q') q: string, @Query() paginationDto: PaginationDto) {
+    if (!q)
+      throw new BadRequestException(
+        'El parámetro de búsqueda "q" es requerido',
+      );
+    return this.productsService.search(q, paginationDto);
+  }
+
+  @Get('category/:slug')
+  @ApiOperation({
+    summary: 'Obtiene productos filtrados por el slug de la categoría',
+  })
+  findByCategory(
+    @Param('slug') slug: string,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.productsService.findByCategorySlug(slug, paginationDto);
+  }
+
+  @Get(':term')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Obtener producto por ID' })
+  @ApiOperation({ summary: 'Obtener producto por ID o slug' })
   @ApiBaseResponse(Product, 'Producto encontrado', HttpStatus.OK)
   @ApiIdResponse()
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.productsService.findOne(id);
+  findOne(@Param('term') term: string) {
+    return this.productsService.findOne(term);
   }
 
   @Post(':id/upload-multiple')

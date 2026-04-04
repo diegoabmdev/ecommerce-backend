@@ -1,39 +1,84 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsPositive, IsString, Min } from 'class-validator';
+// src/common/dtos/pagination.dto.ts
+import { IsOptional, IsString, IsInt, Min, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+
+export enum OrderType {
+  ASC = 'ASC',
+  DESC = 'DESC',
+}
 
 export class PaginationDto {
   @ApiPropertyOptional({
-    default: 10,
+    description: 'Número de elementos por página',
     example: 10,
-    description: '¿Cuántos elementos quieres por página?',
+    default: 10,
   })
   @IsOptional()
-  @IsPositive()
+  @IsInt()
+  @Min(1)
   @Type(() => Number)
   limit?: number;
 
   @ApiPropertyOptional({
-    default: 0,
+    description: 'Número de elementos a saltar (desplazamiento)',
     example: 0,
-    description: '¿Cuántos elementos quieres saltar? (Paginación)',
+    default: 0,
   })
   @IsOptional()
+  @IsInt()
   @Min(0)
   @Type(() => Number)
   offset?: number;
 
   @ApiPropertyOptional({
-    description: 'Término de búsqueda (título del producto)',
-    example: 'silla',
+    description:
+      'Término de búsqueda para filtrar por nombre, email o username',
+    example: 'diego',
   })
   @IsOptional()
   @IsString()
   search?: string;
 
   @ApiPropertyOptional({
-    description: 'Filtrar por ID de categoría',
-    example: '550e8400-e29b-41d4-a716-446655440000',
+    description: 'Campo por el cual ordenar los resultados',
+    example: 'createdAt',
+    default: 'createdAt',
+  })
+  @IsOptional()
+  @IsString()
+  sortBy?: string = 'createdAt';
+
+  @ApiPropertyOptional({
+    description: 'Dirección del ordenamiento',
+    enum: OrderType,
+    default: OrderType.DESC,
+  })
+  @IsOptional()
+  @IsEnum(OrderType)
+  order?: OrderType = OrderType.DESC;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar usuarios por género',
+    example: 'male',
+    enum: ['male', 'female', 'other'],
+  })
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar usuarios por su rol en el sistema',
+    example: 'customer',
+    enum: ['customer', 'admin', 'superAdmin'],
+  })
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por ID de categoría (específico para productos)',
+    example: 'uuid-categoría',
   })
   @IsOptional()
   @IsString()

@@ -12,6 +12,7 @@ import { Product } from './entities/product.entity';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { FilesService } from '../files/files.service';
 import { CategoriesService } from '../categories/categories.service';
+import { Wishlist } from '../wishlist/entities/wishlist.entity';
 
 interface DBError {
   code: string;
@@ -25,6 +26,10 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+
+    @InjectRepository(Wishlist)
+    private readonly wishlistRepository: Repository<Wishlist>,
+
     private readonly filesService: FilesService,
     private readonly categoriesService: CategoriesService,
   ) {}
@@ -63,7 +68,7 @@ export class ProductsService {
   private handleDBExceptions(error: unknown): never {
     const dbError = error as DBError;
 
-    if (dbError.code === '23505') {
+    if (dbError && dbError.code === '23505') {
       throw new BadRequestException(dbError.detail);
     }
 
@@ -95,14 +100,24 @@ export class ProductsService {
     }
   }
 
-  async findAll(paginationDto: PaginationDto) {
+  async findAll(paginationDto: PaginationDto, userId?: string) {
     const { limit = 10, offset = 0, search, categoryId } = paginationDto;
     const whereOptions: FindOptionsWhere<Product> = { isActive: true };
 
     if (search) whereOptions.title = ILike(`%${search}%`);
-    if (categoryId) whereOptions.category = { id: categoryId };
 
-    const [data, total] = await this.productRepository.findAndCount({
+    if (categoryId) {
+      const isUUID =
+        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+          categoryId,
+        );
+
+      whereOptions.category = isUUID
+        ? { id: categoryId }
+        : { slug: categoryId };
+    }
+
+    const [products, total] = await this.productRepository.findAndCount({
       take: limit,
       skip: offset,
       where: whereOptions,
@@ -110,21 +125,97 @@ export class ProductsService {
       order: { createdAt: 'DESC' },
     });
 
+    let favoriteProductIds: string[] = [];
+
+    if (userId) {
+      const favorites = await this.wishlistRepository.find({
+        where: { user: { id: userId } },
+        select: ['product'],
+        relations: ['product'],
+      });
+      favoriteProductIds = favorites.map((fav) => fav.product.id);
+    }
+
+    const productsWithFavorite = products.map((product) => ({
+      ...product,
+      isFavorite: favoriteProductIds.includes(product.id),
+    }));
+
     return {
-      data,
+      data: productsWithFavorite,
       meta: { total, limit, offset, totalPages: Math.ceil(total / limit) },
     };
   }
 
-  async findOne(id: string): Promise<Product> {
-    const product = await this.productRepository.findOne({
-      where: { id },
+  async findOne(term: string): Promise<Product> {
+    const isUUID =
+      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+        term,
+      );
+
+    const product = isUUID
+      ? await this.productRepository.findOne({
+          where: { id: term },
+          relations: ['category'],
+        })
+      : await this.productRepository.findOne({
+          where: { slug: term.toLowerCase().trim() },
+          relations: ['category'],
+        });
+
+    if (!product)
+      throw new NotFoundException(`Producto con término ${term} no encontrado`);
+
+    return product;
+  }
+
+  async search(q: string, paginationDto: PaginationDto) {
+    const { limit = 10, offset = 0 } = paginationDto;
+
+    const [products, total] = await this.productRepository.findAndCount({
+      where: [
+        { title: ILike(`%${q}%`), isActive: true },
+        { description: ILike(`%${q}%`), isActive: true },
+        { brand: ILike(`%${q}%`), isActive: true },
+      ],
+      take: limit,
+      skip: offset,
       relations: ['category'],
     });
 
-    if (!product)
-      throw new NotFoundException(`Producto con id ${id} no encontrado`);
-    return product;
+    return {
+      data: products,
+      meta: {
+        total,
+        limit,
+        offset,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findByCategorySlug(slug: string, paginationDto: PaginationDto) {
+    const { limit = 10, offset = 0 } = paginationDto;
+
+    const [products, total] = await this.productRepository.findAndCount({
+      where: {
+        category: { slug: slug.toLowerCase() },
+        isActive: true,
+      },
+      take: limit,
+      skip: offset,
+      relations: ['category'],
+    });
+
+    return {
+      data: products,
+      meta: {
+        total,
+        limit,
+        offset,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async update(
@@ -159,9 +250,10 @@ export class ProductsService {
         this.filesService.deleteImage(img),
       );
       await Promise.all(deletePromises).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : 'Unknown';
+        const errorMessage =
+          err instanceof Error ? err.message : 'Error desconocido';
         this.logger.error(
-          `Error limpiando Cloudinary al borrar producto: ${msg}`,
+          `Error limpiando Cloudinary al borrar producto: ${errorMessage}`,
         );
       });
     }

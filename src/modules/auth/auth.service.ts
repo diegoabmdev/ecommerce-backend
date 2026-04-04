@@ -10,6 +10,7 @@ import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from '../users/dto/forgot-password.dto';
 import { ResetPasswordDto } from '../users/dto/reset-password.dto';
+import { User } from '../users/entities/user.entity';
 
 interface AuthMessageResponse {
   message: string;
@@ -33,7 +34,24 @@ export class AuthService {
     }
 
     return {
-      user: { email: user.email, id: user.id },
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
+      token: this.jwtService.sign({ id: user.id }),
+    };
+  }
+
+  checkStatus(user: User) {
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
       token: this.jwtService.sign({ id: user.id }),
     };
   }

@@ -12,6 +12,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { WishlistModule } from './modules/wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -55,6 +56,8 @@ import { AppService } from './app.service';
     CategoriesModule,
 
     ReviewsModule,
+
+    WishlistModule,
   ],
   controllers: [AppController],
   providers: [AppService],

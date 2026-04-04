@@ -11,6 +11,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { PassportModule } from '@nestjs/passport';
+import { User } from '../users/entities/user.entity';
 
 describe('ProductsController', () => {
   let controller: ProductsController;
@@ -39,6 +40,9 @@ describe('ProductsController', () => {
             remove: jest.fn(),
             uploadMultipleImages: jest.fn(),
             deleteProductImage: jest.fn(),
+            getCategoryList: jest.fn(),
+            search: jest.fn(),
+            findByCategorySlug: jest.fn(),
           },
         },
         {
@@ -76,19 +80,41 @@ describe('ProductsController', () => {
   });
 
   describe('findAll', () => {
-    it('debería retornar el listado de productos', async () => {
+    it('debería retornar el listado de productos sin usuario (invitado)', async () => {
       const paginationDto: PaginationDto = { limit: 10, offset: 0 };
       const mockResponse = {
-        data: [mockProduct],
+        data: [{ ...mockProduct, isFavorite: false }],
         meta: { total: 1, limit: 10, offset: 0, totalPages: 1 },
       };
 
-      productsService.findAll.mockResolvedValue(mockResponse);
+      productsService.findAll.mockResolvedValue(mockResponse as never);
 
-      const result = await controller.findAll(paginationDto);
+      const result = await controller.findAll(paginationDto, undefined);
 
-      expect(productsService.findAll).toHaveBeenCalledWith(paginationDto);
+      expect(productsService.findAll).toHaveBeenCalledWith(
+        paginationDto,
+        undefined,
+      );
       expect(result.data).toHaveLength(1);
+    });
+
+    it('debería retornar el listado y pasar el userId al servicio si el usuario está autenticado', async () => {
+      const paginationDto: PaginationDto = { limit: 10, offset: 0 };
+      const mockUser = { id: 'user-123' } as User;
+      const mockResponse = {
+        data: [{ ...mockProduct, isFavorite: true }],
+        meta: { total: 1, limit: 10, offset: 0, totalPages: 1 },
+      };
+
+      productsService.findAll.mockResolvedValue(mockResponse as never);
+
+      const result = await controller.findAll(paginationDto, mockUser);
+
+      expect(productsService.findAll).toHaveBeenCalledWith(
+        paginationDto,
+        'user-123',
+      );
+      expect(result.data[0].isFavorite).toBe(true);
     });
   });
 

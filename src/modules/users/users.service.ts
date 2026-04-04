@@ -17,7 +17,7 @@ import * as crypto from 'crypto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { MailService } from '../mail/mail.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { OrderType, PaginationDto } from '../../common/dtos/pagination.dto';
 
 interface AuthMessageResponse {
   message: string;
@@ -56,20 +56,41 @@ export class UsersService {
   }
 
   async findAll(paginationDto: PaginationDto) {
-    const { limit = 10, offset = 0, search } = paginationDto;
+    const {
+      limit = 10,
+      offset = 0,
+      search,
+      sortBy = 'createdAt',
+      order = OrderType.DESC,
+      gender,
+      role,
+    } = paginationDto;
 
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
-      .leftJoinAndSelect('user.addresses', 'addresses');
+      .leftJoinAndSelect('user.addresses', 'addresses')
+      .leftJoin('user.orders', 'orders')
+      .loadRelationCountAndMap('user.ordersCount', 'user.orders');
 
     if (search) {
-      queryBuilder.where(
-        'user.fullName ILIKE :search OR user.email ILIKE :search',
-        {
-          search: `%${search}%`,
-        },
+      queryBuilder.andWhere(
+        '(user.fullName ILIKE :search OR user.email ILIKE :search OR user.username ILIKE :search)',
+        { search: `%${search}%` },
       );
     }
+
+    if (gender) {
+      queryBuilder.andWhere('user.gender = :gender', { gender });
+    }
+
+    if (role) {
+      queryBuilder.andWhere('user.role = :role', { role });
+    }
+
+    const validSortFields = ['createdAt', 'fullName', 'email', 'username'];
+    const finalSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+
+    queryBuilder.orderBy(`user.${finalSortBy}`, order);
 
     const [users, total] = await queryBuilder
       .take(limit)
@@ -77,15 +98,19 @@ export class UsersService {
       .getManyAndCount();
 
     return {
-      data: users,
-      meta: {
-        total,
-        page: Math.floor(offset / limit) + 1,
-        lastPage: Math.ceil(total / limit),
-        limit,
-        offset,
-      },
+      users,
+      total,
+      skip: offset,
+      limit,
+      page: Math.floor(offset / limit) + 1,
+      lastPage: Math.ceil(total / limit),
     };
+  }
+
+  async remove(id: string) {
+    const user = await this.findOne(id);
+    await this.userRepository.remove(user);
+    return { message: 'Usuario eliminado correctamente' };
   }
 
   async findOne(id: string) {
@@ -189,6 +214,10 @@ export class UsersService {
     return { message: 'Dirección eliminada correctamente' };
   }
 
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
   async forgotPassword(
     forgotPasswordDto: ForgotPasswordDto,
   ): Promise<AuthMessageResponse> {
@@ -207,16 +236,18 @@ export class UsersService {
       }
     }
 
-    const token = crypto.randomBytes(20).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = this.hashToken(resetToken);
+
     const expires = new Date();
     expires.setHours(expires.getHours() + 1);
 
-    user.resetPasswordToken = token;
+    user.resetPasswordToken = hashedToken;
     user.resetPasswordExpires = expires;
 
     await this.userRepository.save(user);
 
-    await this.mailService.sendResetPasswordEmail(user.email, token);
+    await this.mailService.sendResetPasswordEmail(user.email, resetToken);
 
     return { message: 'Correo de recuperación enviado.' };
   }
@@ -226,13 +257,17 @@ export class UsersService {
   ): Promise<AuthMessageResponse> {
     const { token, newPassword } = resetPasswordDto;
 
+    const hashedToken = this.hashToken(token);
+
     const user = await this.userRepository.findOne({
-      where: { resetPasswordToken: token },
+      where: { resetPasswordToken: hashedToken },
       select: ['id', 'password', 'resetPasswordToken', 'resetPasswordExpires'],
     });
 
     if (!user) {
-      throw new BadRequestException('El token de recuperación es inválido');
+      throw new BadRequestException(
+        'El token de recuperación es inválido o ya fue usado',
+      );
     }
 
     const now = new Date();
