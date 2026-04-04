@@ -214,6 +214,10 @@ export class UsersService {
     return { message: 'Dirección eliminada correctamente' };
   }
 
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
   async forgotPassword(
     forgotPasswordDto: ForgotPasswordDto,
   ): Promise<AuthMessageResponse> {
@@ -232,16 +236,18 @@ export class UsersService {
       }
     }
 
-    const token = crypto.randomBytes(20).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = this.hashToken(resetToken);
+
     const expires = new Date();
     expires.setHours(expires.getHours() + 1);
 
-    user.resetPasswordToken = token;
+    user.resetPasswordToken = hashedToken;
     user.resetPasswordExpires = expires;
 
     await this.userRepository.save(user);
 
-    await this.mailService.sendResetPasswordEmail(user.email, token);
+    await this.mailService.sendResetPasswordEmail(user.email, resetToken);
 
     return { message: 'Correo de recuperación enviado.' };
   }
@@ -251,13 +257,17 @@ export class UsersService {
   ): Promise<AuthMessageResponse> {
     const { token, newPassword } = resetPasswordDto;
 
+    const hashedToken = this.hashToken(token);
+
     const user = await this.userRepository.findOne({
-      where: { resetPasswordToken: token },
+      where: { resetPasswordToken: hashedToken },
       select: ['id', 'password', 'resetPasswordToken', 'resetPasswordExpires'],
     });
 
     if (!user) {
-      throw new BadRequestException('El token de recuperación es inválido');
+      throw new BadRequestException(
+        'El token de recuperación es inválido o ya fue usado',
+      );
     }
 
     const now = new Date();

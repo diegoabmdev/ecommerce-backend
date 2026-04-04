@@ -52,13 +52,16 @@ export class Category {
   @BeforeInsert()
   @BeforeUpdate()
   checkSlug() {
-    if (!this.slug) {
+    if (!this.slug && this.name) {
       this.slug = this.name;
     }
-    this.slug = this.slug
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, '_')
-      .replace(/[^\w-]+/g, '');
+
+    if (this.slug) {
+      this.slug = this.slug
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '_')
+        .replace(/[^\w-]+/g, '');
+    }
   }
 }

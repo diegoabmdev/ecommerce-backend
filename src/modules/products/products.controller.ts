@@ -14,6 +14,7 @@ import {
   ParseUUIDPipe,
   HttpStatus,
   HttpCode,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -46,8 +47,9 @@ import {
   MultipleImageDataDto,
 } from '../../common/responses/image-responses.dto';
 import { BaseResponseDto } from '../../common/responses/base-response.dto';
-import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../users/entities/user.entity';
+import { GetUserOptional } from '../auth/decorators/get-user-optional.decorator';
+import { JwtOptionalGuard } from '../auth/guards/jwt-optional.guard';
 
 @ApiTags('Products')
 @ApiServerErrors()
@@ -69,10 +71,15 @@ export class ProductsController {
   }
 
   @Get()
+  @UseGuards(JwtOptionalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listado paginado de productos' })
   @ApiBaseResponse(Product, 'Listado obtenido', HttpStatus.OK, true)
-  findAll(@Query() paginationDto: PaginationDto, @GetUser() user?: User) {
+  findAll(
+    @Query() paginationDto: PaginationDto,
+    @GetUserOptional() user?: User,
+  ) {
+    console.log('Usuario detectado en ruta pública:', user?.email);
     return this.productsService.findAll(paginationDto, user?.id);
   }
 
@@ -108,14 +115,6 @@ export class ProductsController {
         'El parámetro de búsqueda "q" es requerido',
       );
     return this.productsService.search(q, paginationDto);
-  }
-
-  @Get('category-list')
-  @ApiOperation({
-    summary: 'Obtiene una lista simple de los slugs de las categorías',
-  })
-  getCategoryList() {
-    return this.productsService.getCategoryList();
   }
 
   @Get('category/:slug')

@@ -100,16 +100,22 @@ export class ProductsService {
     }
   }
 
-  async getCategoryList() {
-    return await this.categoriesService.getFlatList();
-  }
-
   async findAll(paginationDto: PaginationDto, userId?: string) {
     const { limit = 10, offset = 0, search, categoryId } = paginationDto;
     const whereOptions: FindOptionsWhere<Product> = { isActive: true };
 
     if (search) whereOptions.title = ILike(`%${search}%`);
-    if (categoryId) whereOptions.category = { id: categoryId };
+
+    if (categoryId) {
+      const isUUID =
+        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+          categoryId,
+        );
+
+      whereOptions.category = isUUID
+        ? { id: categoryId }
+        : { slug: categoryId };
+    }
 
     const [products, total] = await this.productRepository.findAndCount({
       take: limit,
@@ -177,7 +183,15 @@ export class ProductsService {
       relations: ['category'],
     });
 
-    return { products, total, limit, skip: offset };
+    return {
+      data: products,
+      meta: {
+        total,
+        limit,
+        offset,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findByCategorySlug(slug: string, paginationDto: PaginationDto) {
@@ -193,7 +207,15 @@ export class ProductsService {
       relations: ['category'],
     });
 
-    return { products, total, limit, skip: offset };
+    return {
+      data: products,
+      meta: {
+        total,
+        limit,
+        offset,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async update(

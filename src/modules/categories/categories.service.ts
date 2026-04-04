@@ -35,16 +35,12 @@ export class CategoriesService {
   }
 
   async getFlatList() {
-    const categories = await this.categoryRepository.find();
+    const categories = await this.categoryRepository.find({ select: ['slug'] });
     return categories.map((cat) => cat.slug);
   }
 
   async findAll() {
     return await this.categoryRepository.find({});
-  }
-
-  async findAllInternal() {
-    return await this.categoryRepository.find();
   }
 
   async findOne(id: string) {

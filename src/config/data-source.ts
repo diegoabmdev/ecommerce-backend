@@ -17,6 +17,7 @@ export const dataSourceOptions: DataSourceOptions = {
 
   logging: false,
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  dropSchema: false,
 };
 
 const dataSource = new DataSource(dataSourceOptions);

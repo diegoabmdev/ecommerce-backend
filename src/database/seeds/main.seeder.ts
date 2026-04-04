@@ -19,19 +19,39 @@ export default class MainSeeder implements Seeder {
       {
         name: 'Smartphones',
         description: 'Últimos modelos de teléfonos inteligentes',
+        slug: 'smartphones',
       },
       {
         name: 'Laptops',
         description: 'Computadoras portátiles para trabajo y gaming',
+        slug: 'laptops',
       },
-      { name: 'Fragrances', description: 'Perfumes y fragancias exclusivas' },
-      { name: 'Skincare', description: 'Cuidado de la piel y belleza' },
+      {
+        name: 'Fragrances',
+        description: 'Perfumes y fragancias exclusivas',
+        slug: 'fragrances',
+      },
+      {
+        name: 'Skincare',
+        description: 'Cuidado de la piel y belleza',
+        slug: 'skincare',
+      },
+
       {
         name: 'Home Decoration',
         description: 'Artículos para decorar tu hogar',
+        slug: 'home-decoration',
       },
-      { name: 'Furniture', description: 'Muebles de alta calidad' },
-      { name: 'Groceries', description: 'Productos de primera necesidad' },
+      {
+        name: 'Furniture',
+        description: 'Muebles de alta calidad',
+        slug: 'furniture',
+      },
+      {
+        name: 'Groceries',
+        description: 'Productos de primera necesidad',
+        slug: 'groceries',
+      },
     ];
 
     const categories: Category[] = [];

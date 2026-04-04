@@ -11,7 +11,7 @@ export class LoginDto {
   email: string;
 
   @ApiProperty({
-    example: '123456',
+    example: '123456Ab@',
     description: 'Contraseña de tu cuenta',
     required: true,
   })

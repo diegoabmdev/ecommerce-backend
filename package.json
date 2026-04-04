@@ -27,7 +27,10 @@
     "migration:generate": "npm run typeorm -- migration:generate -d src/typeorm.config.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/typeorm.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/typeorm.config.ts",
-    "seed": "ts-node src/database/run-seed.ts"
+    "seed": "ts-node src/database/run-seed.ts",
+    "db:drop": "ts-node node_modules/typeorm/cli.js schema:drop -d src/config/data-source.ts",
+    "db:seed": "ts-node src/database/run-seed.ts",
+    "db:reset": "npm run db:drop && npm run db:seed"
   },
   "dependencies": {
     "@faker-js/faker": "^10.3.0",

@@ -56,6 +56,19 @@ export class CategoriesController {
     return this.categoriesService.findAll();
   }
 
+  @Get('flat-list')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Obtiene una lista simple de los slugs' })
+  @ApiBaseResponse(
+    Category,
+    'Lista de categorías obtenida',
+    HttpStatus.OK,
+    true,
+  )
+  getFlatList() {
+    return this.categoriesService.getFlatList();
+  }
+
   @Get('menu-stats')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
